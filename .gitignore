@@ -94,3 +94,8 @@ config.development.js
 
 
 env
+# Test files
+tests/data/*
+.pytest_cache/
+__pycache__/
+.coverage
