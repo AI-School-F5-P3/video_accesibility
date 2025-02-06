@@ -58,3 +58,7 @@ Thumbs.db
 yolov8n*
 runs/
 *.pt
+
+# Credentials
+credentials/*
+!credentials/.gitkeep
