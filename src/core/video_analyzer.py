@@ -6,10 +6,14 @@ import numpy as np
 import yt_dlp
 from pydantic import BaseModel, field_validator
 
+
+# Class defining allowed video and audio formats
 class VideoFormat:
     VIDEO_FORMATS = ['.mp4', '.avi', '.mov', '.mkv', '.webm']
     AUDIO_FORMATS = ['.wav', '.mp3', '.m4a', '.flac', '.webm']
 
+
+# Class to store video metadata with validation
 class YouTubeVideoMetadata(BaseModel):
     url: str
     title: str
@@ -21,6 +25,8 @@ class YouTubeVideoMetadata(BaseModel):
     fps: Optional[float] = None
     uploader: Optional[str] = None
 
+
+    # Validate that the video format is allowed
     @field_validator('video_format')
     @classmethod
     def validate_video_format(cls, v):
@@ -28,6 +34,8 @@ class YouTubeVideoMetadata(BaseModel):
             raise ValueError(f'Invalid format, must be one of {VideoFormat.VIDEO_FORMATS}')
         return v
 
+
+    # Validate that duration, width, and height are positive numbers
     @field_validator('duration', 'width', 'height')
     @classmethod
     def validate_positive_values(cls, v):
@@ -35,13 +43,15 @@ class YouTubeVideoMetadata(BaseModel):
             raise ValueError('Value must be positive')
         return v
 
+
+# Class for video processing, including frame extraction and scene detection
 class VideoProcessor:
     @staticmethod
     def extract_frames(video_path: str, interval: int, fps: float) -> List[np.ndarray]:
         frames = []
         frame_count = 0
         
-        video = cv2.VideoCapture(video_path)
+        video = cv2.VideoCapture(video_path) #open video file
         if not video.isOpened():
             raise ValueError("Could not open the video file.")
         
@@ -56,6 +66,7 @@ class VideoProcessor:
         video.release()
         return frames
 
+    # Detect scene changes based on frame differences.
     @staticmethod
     def detect_scene_changes(frames: List[np.ndarray], threshold: float = 0.1) -> List[int]:
         scene_changes = []
@@ -75,7 +86,7 @@ class VideoProcessor:
             prev_frame = frame
             
         return scene_changes    
-
+# Class to manage YouTube video metadata, downloading, and processing
 class YouTubeVideoManager:
     def __init__(self, youtube_url: str):
         self.youtube_url = youtube_url
@@ -83,10 +94,13 @@ class YouTubeVideoManager:
         self.video_path = None
         self._representative_frames = None
 
+    # Detect scene changes in the video
     def analyze_scene_changes(self, threshold: float = 0.1) -> List[int]:
         frames = self.representative_frames
         return VideoProcessor.detect_scene_changes(frames, threshold)
 
+
+    #Extract metadata from a YouTube video using yt_dlp.
     def _extract_youtube_metadata(self) -> YouTubeVideoMetadata:
         ydl_opts = {'quiet': True, 'no_warnings': True, 'extract_flat': True}
         try:
