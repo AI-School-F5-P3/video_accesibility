@@ -1,0 +1,40 @@
+.# Entorno virtual
+venv/
+
+# Archivos de Python compilados
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+#Credenciales y configuración sensible
+src/config/credentials/*.json
+*.key
+*.pem
+.env
+credentials.json
+google_credentials.json
+
+# Archivos de datos y multimedia
+data/frames/
+data/*.mp4
+data/*.avi
+data/*.mov
+data/*.wav
+data/*.mp3
+
+# Logs y archivos temporales
+*.log
+*.tmp
+*.swp
+*.swo
+.DS_Store
+
+# Dependencias
+pip-log.txt
+
+# Resultados generados
+data/*.srt
+data/*.vtt
+data/*.json
+output/
