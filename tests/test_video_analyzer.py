@@ -13,14 +13,14 @@ from core.video_analyzer import YouTubeVideoManager, YouTubeVideoMetadata, Video
 # Fixture that provides a sample valid YouTube URL for testing
 @pytest.fixture
 def valid_youtube_url():
-    return "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    return "https://www.youtube.com/watch?v=JYJqu3nI0Zk&t=14s&ab_channel=Rioja2.com"
 
 
 # Fixture that provides mock metadata for a YouTube video
 @pytest.fixture
 def mock_youtube_metadata():
     return YouTubeVideoMetadata(
-        url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        url="https://www.youtube.com/watch?v=JYJqu3nI0Zk&t=14s&ab_channel=Rioja2.com",
         title="Test Video",
         duration=180,
         video_format=".mp4",
