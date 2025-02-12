@@ -1,4 +1,0 @@
--r base.txt
-google-cloud-vision>=3.4.0
-google-cloud-storage>=2.10.0
-vertexai>=0.0.1

@@ -62,3 +62,6 @@ runs/
 # Credentials
 credentials/*
 !credentials/.gitkeep
+
+# Google credentials
+credentials/
