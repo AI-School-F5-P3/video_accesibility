@@ -43,6 +43,7 @@ google-auth
 google-auth-httplib2         
 google-cloud-core            
 google-cloud-texttospeech    
+google-genai
 google-generativeai          
 googleapis-common-protos     
 grpcio                       
@@ -102,11 +103,10 @@ pydub
 pyee                         
 Pygments                     
 pyparsing                    
-pysbd  
-pytest
-pytest-mock                      
+pysbd                        
 python-crfsuite              
-python-dateutil              
+python-dateutil   
+python-dotenv           
 python-ffmpeg                
 pytz                         
 PyYAML                       
