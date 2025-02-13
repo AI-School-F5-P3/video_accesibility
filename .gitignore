@@ -65,3 +65,23 @@ credentials/*
 
 # Google credentials
 credentials/
+
+# Ignorar videos grandes
+tests/resources/videos/*
+!tests/resources/videos/README.md
+
+# Resource directories
+resources/videos/*
+!resources/videos/README.md
+resources/samples/*
+!resources/samples/README.md
+
+# Output directories
+output/processed/*
+output/temp/*
+!output/processed/.gitkeep
+!output/temp/.gitkeep
+
+# Keep directory structure
+!resources/videos/.gitkeep
+!resources/samples/.gitkeep
