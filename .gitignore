@@ -7,6 +7,7 @@ venv/
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
 *.so
 .Python
 build/
@@ -22,20 +23,24 @@ sdist/
 var/
 wheels/
 *.egg-info/
+.installed.cfg
+*.egg
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-tests/data/*
-!tests/data/.gitkeep
+# Virtual Environment
+venv/
+ENV/
+env/
 
-# IDE
-.idea/
+# VSCode
 .vscode/
-*.swp
-*.swo
+*.code-workspace
+.history/
+
+# Mac OS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
 
 # Project specific
 models/*.pt
@@ -45,10 +50,46 @@ data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+output/processed/*
+!output/processed/.gitkeep
+resources/videos/*
+!resources/videos/.gitkeep
+
+# Google Cloud credentials
+*.json
+credentials/
+.config/
+.cache/
 
 # Logs
-logs/
 *.log
+logs/
+temp/
+*.tmp
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+tests/data/*
+!tests/data/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
 
 # OS
 .DS_Store
@@ -58,13 +99,6 @@ Thumbs.db
 yolov8n*
 runs/
 *.pt
-
-# Credentials
-credentials/*
-!credentials/.gitkeep
-
-# Google credentials
-credentials/
 
 # Ignorar videos grandes
 tests/resources/videos/*
@@ -85,3 +119,26 @@ output/temp/*
 # Keep directory structure
 !resources/videos/.gitkeep
 !resources/samples/.gitkeep
+
+# Archivos de backup
+*.bak
+src/pipeline/*.bak
+
+# Archivos temporales de procesamiento
+output/processed/temp/**
+output/temp/**
+
+# Archivos de caché adicionales
+.pyc
+.pyo
+.pyd
+*.so
+*.dylib
+
+# Archivos de sistema adicionales
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
