@@ -1,0 +1,52 @@
+
+
+body.bg-light {
+    background-color: rgb(5, 81, 100) !important;
+}
+
+
+h1.display-4 {
+    font-family: 'Tangerine', cursive;
+    font-size: 5rem;
+}
+
+
+
+h2.h4 {
+    font-family: 'Tangerine', cursive;
+    font-size: 2.5rem;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.btn-custom {
+    background-color: rgb(6, 122, 151) !important;
+    color: white !important;
+    border-color: rgb(5, 81, 100) !important;
+}
+
+.btn-custom:hover {
+    background-color: rgb(4, 65, 80) !important;  /* Un poco más oscuro para el hover */
+    border-color: rgb(4, 65, 80) !important;
+}
+
+.upload-area {
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.upload-area:hover {
+    background-color: #e9ecef;
+}
+
+.border-dashed {
+    border-style: dashed !important;
+}
+
+/* Dragging state */
+.upload-area.dragging {
+    background-color: #e9ecef;
+    border-color: #6807d8 !important;
+}

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIRESSE - Accesibilidad</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="css/styles.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <!-- Header -->
+        <header class="text-center mb-5">
+            <h1 class="display-4 fw-bold text-white">MIRESSE</h1>
+            <p class="lead text-white">Audiodescripciones y subtítulos para la accesibilidad</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow-sm">
+                    <div class="card-body p-4">
+                        <!-- URL Input Section -->
+                        <section class="mb-5">
+                            <h2 class="h4 mb-3">
+                                <i class="bi bi-link"></i> Análisis por URL
+                            </h2>
+                            <form id="urlForm">
+                                <div class="mb-3">
+                                    <input type="url" 
+                                           class="form-control" 
+                                           id="videoUrl" 
+                                           placeholder="Introduce la URL del video"
+                                           required>
+                                </div>
+                                <button type="submit" class="btn btn-custom">
+                                    <i class="bi bi-play-fill"></i> Analizar URL
+                                </button>
+                            </form>
+                        </section>
+
+                        <!-- File Upload Section -->
+                        <section class="mb-5">
+                            <h2 class="h4 mb-3">
+                                <i class="bi bi-upload"></i> Subir Video
+                            </h2>
+                            <div class="upload-area p-4 text-center border border-2 border-dashed rounded">
+                                <input type="file" 
+                                       id="videoFile" 
+                                       accept="video/*" 
+                                       class="d-none">
+                                <label for="videoFile" class="mb-0 cursor-pointer">
+                                    <i class="bi bi-cloud-upload display-6 mb-3"></i>
+                                    <p class="mb-0">Arrastra tu video aquí o haz clic para seleccionar</p>
+                                </label>
+                            </div>
+                        </section>
+
+                        <!-- Analysis Options -->
+                        <section>
+                            <h2 class="h4 mb-3">
+                                <i class="bi bi-gear"></i> Opciones de Análisis
+                            </h2>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="audioDesc">
+                                <label class="form-check-label" for="audioDesc">
+                                    Generar audiodescripción
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="subtitles">
+                                <label class="form-check-label" for="subtitles">
+                                    Generar subtítulos
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="sceneAnalysis">
+                                <label class="form-check-label" for="sceneAnalysis">
+                                    Análisis de escenas
+                                </label>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- Processing Status -->
+                <div id="processingStatus" class="alert alert-info mt-4 d-none">
+                    Procesando video...
+                </div>
+            </div>
+        </div>
+        <!-- Footer -->
+        <footer class="text-center mt-5">
+            <p class="text-white">
+                Hecho por el dream team con <span class="text-danger">❤</span>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Custom JS -->
+    <script src="js/main.js"></script>
+</body>
+</html>
