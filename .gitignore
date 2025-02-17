@@ -98,3 +98,9 @@ config.development.js
 env
 client_secret.json
 .json
+
+.env
+Environment
+env
+Env
+env/
