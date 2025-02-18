@@ -1,18 +1,24 @@
-import os
-import json
 import logging
 import tempfile
 import io
+import os
 import cv2
 import numpy as np
 import ffmpeg
 import yt_dlp
+import subprocess
 from pathlib import Path
 from typing import List, Dict, Any, Tuple, Optional
 from dataclasses import dataclass
 from google.cloud import vision
 from vertexai.generative_models import GenerativeModel
 from pydantic import BaseModel, field_validator
+from dotenv import load_dotenv
+
+load_dotenv()
+
+GOOGLE_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
 # Configuración de Logging
 logging.basicConfig(level=logging.INFO)
@@ -133,11 +139,13 @@ class YouTubeVideoManager:
             )
 
     def download_video(self) -> str:
-        ydl_opts = {'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]', 'outtmpl': os.path.join(tempfile.gettempdir(), '%(title)s.%(ext)s')}
+        ydl_opts = {
+            'format': 'best',  # Cambiado de 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]' a 'best'
+            'outtmpl': os.path.join(tempfile.gettempdir(), '%(title)s.%(ext)s')
+        }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(self.youtube_url, download=True)
             return ydl.prepare_filename(info_dict)
-
     def analyze_video(self):
         self.video_path = self.download_video()
         extractor = FrameExtractor(self.video_path, "./frames")
