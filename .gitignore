@@ -203,3 +203,6 @@ config.development.js
 env
 client_secret.json
 .json
+.env
+env
+Environment
