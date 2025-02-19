@@ -104,3 +104,102 @@ Environment
 env
 Env
 env/
+# Python Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.env
+venv/
+ENV/
+env/
+env
+(env)
+env/
+
+# Temporary files from video processing
+temp_*
+*.mp4
+*.wav
+*.m4a
+*.avi
+*.mov
+
+# Google Cloud credentials
+*.json
+google_credentials.json
+google-credentials.json
+
+
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Operating System
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing
+coverage/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+
+# Distribution / packaging
+*.tar.gz
+*.tgz
+*.zip
+*.rar
+
+# Logs
+logs/
+*.log
+log.txt
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Local development configuration
+config.local.js
+config.development.js
+
+# .env
+
+
+env
+client_secret.json
+.json

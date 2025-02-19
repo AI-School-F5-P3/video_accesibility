@@ -45,6 +45,10 @@ class AccessibilityProcessor:
         if not self.api_key:
             logger.warning("No se ha proporcionado API_KEY de YouTube. Algunas funciones pueden no estar disponibles.")
         
+
+        # Inicializar voice_synthesizer con valores predeterminados
+        self.voice_synthesizer = VoiceSynthesizer()  # Añade esta línea
+
         # Inicializar Vertex AI y crear modelo generativo
         try:
             import vertexai
