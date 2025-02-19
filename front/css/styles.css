@@ -1,52 +1,129 @@
-
-
-body.bg-light {
-    background-color: rgb(5, 81, 100) !important;
+/* Estilos generales */
+:root {
+    --primary-color: rgb(5, 81, 100);
+    --secondary-color: rgb(6, 122, 151);
+    --dark-hover: rgb(4, 65, 80);
+    --stepper-active: #c8ff00;
+    --stepper-completed: #3b630f;
+    --text-light: white;
 }
 
+/* Fondo del cuerpo */
+body.bg-light {
+    background-color: var(--primary-color) !important;
+    color: var(--text-light);
+}
+
+/* Títulos */
+h1.display-4, h2.h4 {
+    font-family: 'Tangerine', cursive, serif;
+}
 
 h1.display-4 {
-    font-family: 'Tangerine', cursive;
     font-size: 5rem;
 }
 
-
-
 h2.h4 {
-    font-family: 'Tangerine', cursive;
     font-size: 2.5rem;
 }
 
-.cursor-pointer {
-    cursor: pointer;
-}
-
+/* Botones personalizados */
 .btn-custom {
-    background-color: rgb(6, 122, 151) !important;
-    color: white !important;
-    border-color: rgb(5, 81, 100) !important;
+    background-color: var(--secondary-color) !important;
+    color: var(--text-light) !important;
+    border-color: var(--primary-color) !important;
 }
 
 .btn-custom:hover {
-    background-color: rgb(4, 65, 80) !important;  /* Un poco más oscuro para el hover */
-    border-color: rgb(4, 65, 80) !important;
+    background-color: var(--dark-hover) !important;
+    border-color: var(--dark-hover) !important;
 }
 
+/* Stepper */
+.stepper-wrapper {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.stepper-wrapper::before {
+    content: '';
+    position: absolute;
+    height: 2px;
+    width: 100%;
+    background-color: #ccc;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 0;
+}
+
+.stepper-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    z-index: 1;
+}
+
+.step-counter {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: white;
+    border: 2px solid #ccc;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+
+.step-name {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Estados del Stepper */
+.stepper-item.active .step-counter {
+    border-color: var(--stepper-active);
+    background-color: var(--stepper-active);
+    color: var(--text-light);
+}
+
+.stepper-item.active .step-name {
+    color: var(--text-light);
+    font-weight: bold;
+}
+
+.stepper-item.completed .step-counter {
+    background-color: var(--stepper-completed);
+    border-color: var(--stepper-completed);
+    color: var(--text-light);
+}
+
+/* Área de subida de archivos */
 .upload-area {
     background-color: #f8f9fa;
     transition: all 0.3s ease;
+    border-style: dashed !important;
 }
 
 .upload-area:hover {
     background-color: #e9ecef;
 }
 
-.border-dashed {
-    border-style: dashed !important;
-}
-
-/* Dragging state */
+/* Estado Dragging */
 .upload-area.dragging {
     background-color: #e9ecef;
     border-color: #6807d8 !important;
+}
+
+/* Footer */
+footer {
+    background-color: var(--primary-color);
+    color: var(--text-light);
+    padding: 1rem 0;
+    text-align: center;
 }
