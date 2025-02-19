@@ -43,7 +43,10 @@ google-auth
 google-auth-httplib2         
 google-cloud-core            
 google-cloud-texttospeech    
+<<<<<<< HEAD
 google-genai
+=======
+>>>>>>> 0935dfd2a5937d62b46a71bebf56598bda5a078e
 google-generativeai          
 googleapis-common-protos     
 grpcio                       
@@ -82,8 +85,12 @@ murmurhash
 networkx                     
 num2words                    
 numba                        
+<<<<<<< HEAD
 numpy        
 openai-whisper                
+=======
+numpy                        
+>>>>>>> 0935dfd2a5937d62b46a71bebf56598bda5a078e
 opencv-python                
 packaging                    
 pillow                       
@@ -104,10 +111,18 @@ pydub
 pyee                         
 Pygments                     
 pyparsing                    
+<<<<<<< HEAD
 pysbd                        
 python-crfsuite              
 python-dateutil   
 python-dotenv           
+=======
+pysbd  
+pytest
+pytest-mock                      
+python-crfsuite              
+python-dateutil              
+>>>>>>> 0935dfd2a5937d62b46a71bebf56598bda5a078e
 python-ffmpeg                
 pytz                         
 PyYAML                       
