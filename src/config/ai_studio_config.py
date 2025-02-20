@@ -3,33 +3,16 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from typing import Dict, Any
+from dataclasses import dataclass
 
+@dataclass
 class AIStudioConfig:
-    """Configuración para Vertex AI Studio."""
-    
-    def __init__(self):
-        self._config = {
-            "model_name": "gemini-pro",
-            "generation_config": {
-                "temperature": 0.7,
-                "max_output_tokens": 1024,
-                "top_p": 0.8,
-                "top_k": 40
-            },
-            "processing_config": {
-                "enable_speaker_diarization": True,
-                "min_silence_duration": 0.5,
-                "scene_threshold": 0.3
-            }
-        }
-
-    def get_config(self) -> Dict[str, Any]:
-        """Retorna la configuración actual."""
-        return self._config
-
-    def update_config(self, new_config: Dict[str, Any]) -> None:
-        """Actualiza la configuración."""
-        self._config.update(new_config)
+    """Configuración para AI Studio"""
+    MODEL_NAME: str = "text-bison@001"
+    TEMPERATURE: float = 0.7
+    MAX_OUTPUT_TOKENS: int = 1024
+    TOP_P: float = 0.8
+    TOP_K: int = 40
 
 def initialize_ai_studio():
     """

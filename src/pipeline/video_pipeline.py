@@ -11,6 +11,10 @@ from src.core.video_analyzer import VideoAnalyzer
 from src.core.speech_processor import SpeechProcessor
 from src.core.text_processor import TextProcessor
 from src.config.ai_studio_config import AIStudioConfig
+from src.config import UNE153010Config, UNE153020Config
+from src.api.youtube_api import YouTubeAPI  # Añadir import
+import vertexai
+from vertexai.language_models import TextGenerationModel
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO)
@@ -19,34 +23,44 @@ logger = logging.getLogger(__name__)
 class VideoPipeline:
     """Pipeline principal para procesar videos y hacerlos accesibles."""
     
-    def __init__(
-        self,
-        model: GenerativeModel,
-        output_dir: str = "output",
-        add_subtitles: bool = True,
-        config: Dict[str, Any] = None
-    ):
-        # Inicialización del logger
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        vertexai.init(
+            project=os.getenv('GOOGLE_CLOUD_PROJECT'),
+            location=os.getenv('VERTEX_LOCATION')
+        )
+        self.model = TextGenerationModel.from_pretrained("text-bison@001")
+        self.youtube_api = YouTubeAPI(config['youtube_api_key'])
+        self.text_processor = TextProcessor()
+        self.audio_processor = AudioProcessor()
+        self.video_analyzer = VideoAnalyzer()
+        self._initialize_processors()  # Añadido
         
-        # Atributos básicos
-        self.model = model
-        self.output_dir = Path(output_dir)
-        self.add_subtitles = add_subtitles
-        self.config = config or {}
-        self.temp_dir = self.output_dir / "temp"
-        
-        # Configuración de parámetros
-        self.min_silence_duration = 1.0
-        self.min_description_duration = 2.0
-        self.max_description_duration = 5.0
-        self.chars_per_second = 15
-        
-        # Inicialización
-        self._setup_directories()
-        self._initialize_processors()
-        
-        self.logger.info("VideoPipeline inicializado correctamente")
+    async def process_url(
+        self, 
+        url: str, 
+        service_type: str
+    ) -> Dict[str, str]:
+        """Procesa URL de YouTube"""
+        try:
+            # Descargar video
+            video_data = self.youtube_api.download_video(url)
+            
+            # Procesar según tipo de servicio
+            if service_type == "AUDIODESCRIPCION":
+                return await self.audio_service.process_video(
+                    video_data['video_path']
+                )
+            elif service_type == "SUBTITULADO":
+                return await self.subtitle_service.generate_subtitles(
+                    video_data['video_path']
+                )
+            else:
+                raise ValueError(f"Tipo de servicio no válido: {service_type}")
+                
+        except Exception as e:
+            self.logger.error(f"Error en pipeline: {str(e)}")
+            raise
 
     def _initialize_processors(self) -> None:
         """Inicializa los procesadores necesarios."""
@@ -320,3 +334,25 @@ class VideoPipeline:
         except Exception as e:
             self.logger.error(f"Error al obtener información del video: {str(e)}")
             raise
+
+# En el mismo archivo test_video_pipeline.py
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("service_type", ["AUDIODESCRIPCION", "SUBTITULADO"])
+async def test_service_types(pipeline, mock_text_model, service_type):
+    """Test diferentes tipos de servicio"""
+    with patch('src.pipeline.video_pipeline.VideoPipeline.download_video') as mock_download:
+        mock_download.return_value = {
+            'video_path': 'test.mp4',
+            'metadata': {'title': 'Test Video'}
+        }
+        mock_text_model.predict.return_value = Mock(text="Texto de prueba generado")
+        
+        result = await pipeline.process_url("https://youtube.com/test", service_type)
+        assert result is not None
+
+@pytest.mark.asyncio
+async def test_invalid_service_type(pipeline):
+    """Test tipo de servicio inválido"""
+    with pytest.raises(ValueError):
+        await pipeline.process_url("https://youtube.com/test", "SERVICIO_INVALIDO")

@@ -1,30 +1,39 @@
 import logging
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from ...config.settings import Settings
 
-def setup_logger(
-    log_file: Optional[Path] = None,
-    level: int = logging.INFO
-) -> logging.Logger:
-    """Configura un logger centralizado para el pipeline."""
-    
-    logger = logging.getLogger('video_pipeline')
-    logger.setLevel(level)
-    
-    # Formato del log
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
-    # Handler para consola
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-    
-    # Handler para archivo si se especifica
-    if log_file:
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(formatter)
+class LoggerSetup:
+    @staticmethod
+    def setup(name: str = 'video_accessibility') -> logging.Logger:
+        """Configura y retorna un logger"""
+        settings = Settings()
+        log_dir = settings.project_root / "logs"
+        log_dir.mkdir(exist_ok=True)
+
+        logger = logging.getLogger(name)
+        
+        # Evitar duplicación de handlers
+        if logger.handlers:
+            return logger
+            
+        logger.setLevel(logging.INFO)
+
+        # Handler para archivo
+        file_handler = logging.FileHandler(
+            log_dir / f"processing_{datetime.now().strftime('%Y%m%d')}.log"
+        )
+        file_handler.setFormatter(
+            logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        )
+
+        # Handler para consola
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(
+            logging.Formatter('%(levelname)s: %(message)s')
+        )
+
         logger.addHandler(file_handler)
-    
-    return logger
+        logger.addHandler(console_handler)
+
+        return logger

@@ -1,5 +1,0 @@
-# requirements/google.txt
--r base.txt
-google-cloud-aiplatform>=1.35.0
-vertexai>=0.0.1
-google-cloud-storage>=2.10.0

@@ -6,6 +6,10 @@ import os
 import sys
 from pathlib import Path
 from vertexai.generative_models import GenerativeModel
+from unittest.mock import Mock
+from tests.mocks.youtube_mock import YouTubeAPIMock
+from src.config import Settings
+from src.pipeline.video_pipeline import VideoPipeline
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -177,3 +181,21 @@ def mock_processor_config():
             "max_output_tokens": 1024
         }
     }
+
+@pytest.fixture
+def youtube_api():
+    """Proporciona un mock de YouTube API para tests"""
+    return YouTubeAPIMock("test_api_key")
+
+@pytest.fixture
+def mock_video_pipeline(monkeypatch):
+    """Mock del pipeline completo"""
+    monkeypatch.setenv('YOUTUBE_API_KEY', 'test_api_key')
+    monkeypatch.setenv('GOOGLE_APPLICATION_CREDENTIALS', './tests/resources/mock_credentials.json')
+
+@pytest.fixture
+def pipeline(monkeypatch):
+    """Proporciona una instancia de VideoPipeline con mocks"""
+    monkeypatch.setenv('YOUTUBE_API_KEY', 'test_api_key')
+    config = Settings().get_config()
+    return VideoPipeline(config)

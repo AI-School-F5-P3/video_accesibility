@@ -1,6 +1,6 @@
-from typing import Dict, Any, List, Optional
+from typing import List, Dict, Tuple, Optional
+from src.config import UNE153010Config
 
-# src/core/text_processor.py
 class TextProcessor:
     """
     Handles text processing for accessibility features, ensuring compliance 
@@ -17,83 +17,91 @@ class TextProcessor:
         Initialize the text processor with UNE standard requirements.
         These values come directly from UNE153010 and UNE153020.
         """
-        # UNE153010 subtitle requirements
+        self.config = UNE153010Config()
         self.max_chars_per_line = 37
         self.max_lines = 2
-        self.chars_per_second = 15
-        self.min_duration = 1
-        self.max_duration = 6
+        self.chars_per_second = 15  # Añadido
+        self.word_rate = 3.0
 
-        # UNE153020 audio description requirements
-        self.min_silence_duration = 2
-        self.voice_speed = {
-            'min_chars_per_second': 14,
-            'max_chars_per_second': 17
-        }
-        self.word_rate = 2.5  # palabras por segundo (ajustar según necesidad)
+    def _initialize_config(self):
+        """Inicializa configuración desde UNE153010"""
+        self.max_chars_per_line = self.config.MAX_CHARS_PER_LINE
+        self.max_lines = self.config.MAX_LINES
+        self.word_rate = self.config.WORDS_PER_SECOND
+        self.min_duration = self.config.MIN_DURATION
 
-    def format_subtitles(self, text: str, max_chars: int = 37) -> List[Dict[str, str]]:
+    def format_subtitles(self, text: str) -> List[Dict[str, str]]:
         """
         Formatea texto para subtítulos según norma UNE153010.
         """
-        result = {
-            'text': text,
-            'start_time': '00:00:00,000',
-            'end_time': '00:00:03,000'
-        }
-        print("Debug - resultado:", result)  # Depuración
-        return [result]
+        if not text:
+            return []
+            
+        words = text.split()
+        chunks = []
+        current_chunk = []
+        
+        for word in words:
+            if len(' '.join(current_chunk + [word])) <= self.max_chars_per_line:
+                current_chunk.append(word)
+            else:
+                if current_chunk:
+                    chunks.append(' '.join(current_chunk))
+                current_chunk = [word]
+                
+        if current_chunk:
+            chunks.append(' '.join(current_chunk))
+            
+        return [
+            {
+                'text': chunk,
+                'start_time': f'00:00:{i*3:02d},000',
+                'end_time': f'00:00:{(i+1)*3:02d},000'
+            }
+            for i, chunk in enumerate(chunks)
+        ]
 
     def format_audio_description(self, text: str, max_duration: Optional[float] = None) -> str:
         """
-        Formatea la descripción de audio según restricciones de tiempo.
-        
+        Formatea el texto para audiodescripción
         Args:
             text: Texto a formatear
-            max_duration: Duración máxima en segundos (opcional)
+            max_duration: Duración máxima en segundos
+        Returns:
+            str: Texto formateado
         """
         if not text:
             return ""
             
-        if max_duration is None:
-            max_duration = 5.0  # Valor por defecto
-            
-        max_words = int(max_duration * self.word_rate)
-        words = text.split()
-        
-        if len(words) > max_words:
-            words = words[:max_words]
-            text = ' '.join(words)
-            text += '...'
+        if max_duration:
+            words = text.split()
+            max_words = int(max_duration * self.word_rate)
+            return ' '.join(words[:max_words])
             
         return text
 
-    def validate_une_compliance(self, text, text_type='subtitle'):
-        """
-        Validates text against UNE standards.
-        
-        Args:
-            text (str): Text to validate
-            text_type (str): Either 'subtitle' or 'description'
+    def validate_une_compliance(self, text: str, text_type: str = 'subtitle') -> Tuple[bool, str]:
+        """Valida el texto según estándares UNE"""
+        if not text:
+            return True, ""
             
-        Returns:
-            tuple: (bool, str) - (is_compliant, reason if not compliant)
-        """
         if text_type == 'subtitle':
-            # Check UNE153010 compliance
+            # Verificar longitud máxima por línea
             if len(text) > self.max_chars_per_line:
-                return False, f"Exceeds maximum characters per line ({self.max_chars_per_line})"
-            
+                return False, f"Excede máximo de {self.max_chars_per_line} caracteres"
+                
+            # Verificar número de líneas
             lines = text.split('\n')
             if len(lines) > self.max_lines:
-                return False, f"Exceeds maximum lines ({self.max_lines})"
+                return False, f"Excede máximo de {self.max_lines} líneas"
                 
-        elif text_type == 'description':
-            # Check UNE153020 compliance
-            # This would include more specific checks for audio descriptions
-            pass
-            
-        return True, "Compliant with UNE standards"
+            # Verificar caracteres por segundo
+            duration = len(text) / self.chars_per_second
+            if duration < 1.0:  # Mínimo 1 segundo
+                return False, "Duración muy corta"
+                
+            return True, ""
+        return False, "Tipo de texto no válido"
 
     def optimize_text_timing(self, text, available_time):
         """
