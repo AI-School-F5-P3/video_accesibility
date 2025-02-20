@@ -14,6 +14,9 @@ from google.cloud import vision
 from vertexai.generative_models import GenerativeModel
 from pydantic import BaseModel, field_validator
 from dotenv import load_dotenv
+import whisper
+from pydub import AudioSegment
+from pydub.silence import detect_silence
 
 load_dotenv()
 
@@ -63,21 +66,64 @@ class VideoAnalyzer:
     def detect_scenes(self, video_path: str) -> List[Dict[str, Any]]:
         return [{'start_time': 0, 'end_time': 5, 'description': 'Escena inicial'}]
 
-    def detect_silence(self, video_path: str) -> Optional[Dict[str, float]]:
+    def detect_silence(self, video_path: str) -> Optional[List[Dict[str, float]]]:
+        """
+        Detecta silencios en el video usando ffmpeg.
+        """
         try:
-            cmd = [
-                'ffmpeg', '-i', str(video_path), '-af', f'silencedetect=noise={self.silence_threshold}dB:d={self.min_silence_duration}', '-f', 'null', '-'
+            # Verificar que ffmpeg está instalado
+            try:
+                subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+            except FileNotFoundError:
+                logger.error("ffmpeg no está instalado en el sistema")
+                return []
+
+            # Extraer audio a un archivo temporal
+            temp_audio = tempfile.mktemp(suffix='.wav')
+            extract_cmd = [
+                'ffmpeg', '-y',
+                '-i', video_path,
+                '-ac', '1',
+                '-ar', '44100',
+                temp_audio
             ]
-            output = subprocess.run(cmd, capture_output=True, text=True).stderr
+            subprocess.run(extract_cmd, capture_output=True, check=True)
+
+            # Detectar silencios
+            cmd = [
+                'ffmpeg', '-i', temp_audio,
+                '-af', f'silencedetect=noise={self.silence_threshold}dB:d={self.min_silence_duration}',
+                '-f', 'null', '-'
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            # Limpiar archivo temporal
+            try:
+                os.remove(temp_audio)
+            except:
+                pass
+
             silences = []
-            for line in output.split('\n'):
-                if 'silence_start:' in line:
-                    start = float(line.split('silence_start:')[1].strip())
-                    silences.append({'start': start})
-            return silences[0] if silences else None
+            current_silence = {}
+            
+            for line in result.stderr.split('\n'):
+                if 'silence_start' in line:
+                    current_silence['start'] = float(line.split('silence_start: ')[1])
+                elif 'silence_end' in line and 'start' in current_silence:
+                    current_silence['end'] = float(line.split('silence_end: ')[1])
+                    current_silence['duration'] = current_silence['end'] - current_silence['start']
+                    silences.append(current_silence.copy())
+                    current_silence = {}
+
+            return silences
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error en ffmpeg: {e.stderr if e.stderr else str(e)}")
+            return []
         except Exception as e:
             logger.error(f"Error detectando silencios: {str(e)}")
-            return None
+            return []
 
 # Extractor de Frames
 class FrameExtractor:

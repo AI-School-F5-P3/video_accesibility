@@ -1,6 +1,9 @@
+
 import os
 import json
 import logging
+import ffmpeg 
+import subprocess
 import tempfile
 from dotenv import load_dotenv
 from pathlib import Path
@@ -269,7 +272,6 @@ class AccessibilityProcessor:
     def _merge_audio_with_video(self, audio_path: Path, video_path: str) -> Path:
         """
         Combina el audio de la audiodescripción con el video original.
-        Usamos una implementación simulada, en producción se usaría ffmpeg.
         
         Args:
             audio_path: Ruta al archivo de audio generado
@@ -278,17 +280,46 @@ class AccessibilityProcessor:
         Returns:
             Ruta al video resultante
         """
-        # En producción, usar ffmpeg para mezclar el audio con el video original
-        # Aquí simulamos la operación
-        output_path = self.output_dir / f"{Path(video_path).stem}_con_audiodescripcion.mp4"
-        
-        logger.info(f"Simulando mezcla de audio '{audio_path}' con video '{video_path}'")
-        logger.info(f"Video con audiodescripción guardado en: {output_path}")
-        
-        # Crear un archivo vacío para simular la salida
-        output_path.touch()
-        
-        return output_path
+        try:
+            # Verificar que ffmpeg está instalado
+            try:
+                subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+            except FileNotFoundError:
+                logger.error("ffmpeg no está instalado en el sistema")
+                raise RuntimeError("ffmpeg no está instalado. Por favor, instala ffmpeg antes de continuar.")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Error verificando ffmpeg: {e}")
+                raise RuntimeError("Error al verificar la instalación de ffmpeg")
+
+            output_path = self.output_dir / f"{Path(video_path).stem}_con_audiodescripcion.mp4"
+            
+            # Construir el comando ffmpeg
+            cmd = [
+                'ffmpeg', '-y',
+                '-i', str(video_path),
+                '-i', str(audio_path),
+                '-filter_complex', '[0:a][1:a]amix=inputs=2:duration=longest[aout]',
+                '-map', '0:v',
+                '-map', '[aout]',
+                '-c:v', 'copy',
+                '-c:a', 'aac',
+                '-b:a', '192k',
+                str(output_path)
+            ]
+            
+            # Ejecutar el comando
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                logger.error(f"Error en ffmpeg: {result.stderr}")
+                raise RuntimeError(f"Error al mezclar audio y video: {result.stderr}")
+            
+            logger.info(f"Video con audiodescripción guardado en: {output_path}")
+            return output_path
+            
+        except Exception as e:
+            logger.error(f"Error mezclando audio y video: {str(e)}")
+            raise RuntimeError(f"Error al procesar el video: {str(e)}")
 
 
 if __name__ == "__main__":

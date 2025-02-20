@@ -6,6 +6,8 @@ from typing import Dict, List, Optional, Any
 from google.cloud import texttospeech_v1
 from vertexai.generative_models import GenerativeModel
 from dataclasses import dataclass
+from pydub import AudioSegment
+from pydub.silence import detect_silence
 
 @dataclass
 class AudioConfig:
@@ -48,7 +50,6 @@ class AudioProcessor:
     def find_silences(self, audio_data: np.ndarray) -> List[Dict[str, float]]:
         """
         Detects periods of silence suitable for audio descriptions.
-        Implements UNE153020 requirements for silence detection.
         
         Args:
             audio_data: Numpy array of audio samples
@@ -56,9 +57,29 @@ class AudioProcessor:
         Returns:
             List of silence periods with start and end times
         """
+        # Convertir numpy array a formato de audio compatible con pydub
+        audio_segment = AudioSegment(
+            audio_data.tobytes(), 
+            frame_rate=self.config.sample_rate,
+            sample_width=audio_data.dtype.itemsize, 
+            channels=1
+        )
+        
+        # Detectar silencios
+        silence_ranges = detect_silence(
+            audio_segment,
+            min_silence_len=int(self.config.min_silence_duration * 1000),
+            silence_thresh=self.config.min_silence_db
+        )
+        
+        # Convertir a formato de diccionario
         return [
-            {"start": 1.0, "end": 3.5},
-            {"start": 4.0, "end": 6.0}
+            {
+                "start": start / 1000.0,  # convertir a segundos
+                "end": end / 1000.0,
+                "duration": (end - start) / 1000.0
+            }
+            for start, end in silence_ranges
         ]
 
     def assess_quality(self, audio_data: np.ndarray) -> Dict[str, Any]:
