@@ -80,7 +80,7 @@ class VideoDescriptionGenerator:
             )
             self.audio_config = texttospeech_v1.AudioConfig(
                 audio_encoding=texttospeech_v1.AudioEncoding.LINEAR16,
-                speaking_rate=1.0,
+                speaking_rate=1.2,
                 pitch=0.0
             )
         except Exception as e:
@@ -126,7 +126,7 @@ class VideoDescriptionGenerator:
             if response and response.text:
                 description = response.text.strip()
                 words = description.split()
-                max_words = int((max_duration_ms / 1000) * 2.5)
+                max_words = int((max_duration_ms / 1000) * 3)
 
                 if len(words) > max_words:
                     description = " ".join(words[:max_words]) + "."
@@ -139,12 +139,12 @@ class VideoDescriptionGenerator:
             logging.error(f"Error generating description: {str(e)}")
             return ""
 
-    def detect_speech_silence(self, video_path: Path, min_silence_len: int = 2500) -> list[tuple[float, float]]:
+    def detect_speech_silence(self, video_path: Path, min_silence_len: int = 3000) -> list[tuple[float, float]]:
         temp_wav_path = None
         try:
             # Create temporary file with a unique name
             temp_wav_fd, temp_wav_path = tempfile.mkstemp(suffix='.wav')
-            os.close(temp_wav_fd)  # Close file descriptor immediately
+            os.close(temp_wav_fd)
             
             # Extract audio from video to WAV format
             extract_command = [
@@ -158,48 +158,128 @@ class VideoDescriptionGenerator:
             
             subprocess.run(extract_command, check=True, capture_output=True)
             
-            # Transcribe with Whisper
+            # Load audio for analysis
+            audio = AudioSegment.from_wav(temp_wav_path)
+            duration = len(audio)
+            
+            # Transcribe with Whisper using more aggressive settings
             result = self.whisper_model.transcribe(
                 temp_wav_path,
                 language="es",
-                word_timestamps=True
+                word_timestamps=True,
+                condition_on_previous_text=True,
+                temperature=0.2,
+                no_speech_threshold=0.4,  # Make it more sensitive to detecting non-speech
+                logprob_threshold=-1.0    # More strict speech detection
             )
             
-            # Process segments to find silence gaps
-            silent_ranges = []
+            # Process segments to find non-speech gaps
+            non_speech_ranges = []
             last_end = 0
+            min_confidence = 0.5  # Minimum confidence threshold for speech detection
             
-            # Convert segments to time ranges
-            for segment in result["segments"]:
+            # Sort segments by start time
+            segments = sorted(result["segments"], key=lambda x: x["start"])
+            
+            for segment in segments:
                 start_time = segment["start"] * 1000  # Convert to milliseconds
                 end_time = segment["end"] * 1000
                 
-                # If there's a gap between last segment and current one
-                if start_time - last_end >= min_silence_len:
-                    silent_ranges.append((last_end, start_time))
+                # Calculate segment confidence safely
+                words = segment.get('words', [])
+                if words:
+                    # If we have words, calculate average confidence
+                    confidence_sum = sum(word.get('probability', 0) for word in words)
+                    segment_confidence = confidence_sum / len(words)
+                else:
+                    # If no words, treat as non-speech
+                    segment_confidence = 0
                 
-                last_end = end_time
+                # If we have a significant gap and low confidence, mark as non-speech
+                if start_time - last_end >= min_silence_len:
+                    non_speech_ranges.append((last_end, start_time))
+                
+                # Only update last_end if this was a confident speech segment
+                if segment_confidence >= min_confidence:
+                    last_end = end_time
             
-            # Add final silence if it exists
-            audio = AudioSegment.from_wav(temp_wav_path)
-            duration = len(audio)
+            # Check final segment
             if duration - last_end >= min_silence_len:
-                silent_ranges.append((last_end, duration))
+                non_speech_ranges.append((last_end, duration))
             
-            return [(start, end) for start, end in silent_ranges if (end - start) >= min_silence_len]
+            # Merge overlapping or very close ranges
+            merged_ranges = []
+            if non_speech_ranges:
+                current_start, current_end = non_speech_ranges[0]
+                
+                for start, end in non_speech_ranges[1:]:
+                    if start - current_end <= 1000:  # If gaps are within 1 second
+                        current_end = end
+                    else:
+                        merged_ranges.append((current_start, current_end))
+                        current_start, current_end = start, end
+                
+                merged_ranges.append((current_start, current_end))
+            
+            # Filter out any ranges that are too short
+            return [(start, end) for start, end in merged_ranges if (end - start) >= min_silence_len]
             
         except Exception as e:
-            logging.error(f"Error detecting speech silence: {str(e)}")
+            logging.error(f"Error detecting non-speech segments: {str(e)}")
             return []
             
         finally:
-            # Clean up temporary file in finally block
             if temp_wav_path and os.path.exists(temp_wav_path):
                 try:
                     os.unlink(temp_wav_path)
                 except Exception as e:
                     logging.warning(f"Could not delete temporary file {temp_wav_path}: {str(e)}")
 
+    def merge_audio_descriptions(self, video_path: Path, descriptions: list, output_path: Path) -> Path:
+        try:
+            original_audio = AudioSegment.from_file(str(video_path))
+            
+            for desc in descriptions:
+                desc_audio = AudioSegment.from_file(str(desc['audio_file']))
+                start_time = desc['start_time']
+                segment_duration = len(desc_audio)
+                
+                # Split the audio into segments
+                pre_segment = original_audio[:start_time]
+                target_segment = original_audio[start_time:start_time + segment_duration]
+                post_segment = original_audio[start_time + segment_duration:]
+                
+                # Calculate the RMS (root mean square) of the target segment
+                # to adjust volume reduction based on original volume
+                segment_rms = target_segment.rms
+                base_rms = original_audio.rms
+                
+                # Dynamically calculate volume reduction
+                # Louder segments get more reduction
+                volume_reduction = min(-5, -10 * (segment_rms / base_rms))
+                lowered_segment = target_segment + volume_reduction
+                
+                # Add fade effects with longer durations for smoother transitions
+                faded_out_segment = lowered_segment.fade_out(800)
+                faded_in_segment = desc_audio.fade_in(800)
+                
+                # Overlay the audio description
+                combined_segment = faded_out_segment.overlay(
+                    faded_in_segment,
+                    position=0,
+                    gain_during_overlay=-2  # Slight additional reduction during overlay
+                )
+                
+                # Reconstruct the audio
+                original_audio = pre_segment + combined_segment + post_segment
+            
+            # Export the final audio
+            original_audio.export(str(output_path), format="wav")
+            return output_path
+            
+        except Exception as e:
+            logging.error(f"Error merging audio descriptions: {str(e)}")
+            raise
     def generate_audio(self, text: str, output_path: Path) -> bool:
         try:
             if not text:
@@ -313,31 +393,6 @@ class VideoDescriptionGenerator:
             logging.error(f"Error merging video and audio: {str(e)}")
             if temp_path.exists():
                 temp_path.unlink()
-            raise
-
-    def merge_audio_descriptions(self, video_path: Path, descriptions: list, output_path: Path) -> Path:
-        try:
-            original_audio = AudioSegment.from_file(str(video_path))
-
-            for desc in descriptions:
-                desc_audio = AudioSegment.from_file(str(desc['audio_file']))
-                start_time = desc['start_time']
-                segment_duration = len(desc_audio)
-
-                pre_segment = original_audio[:start_time]
-                target_segment = original_audio[start_time:start_time + segment_duration]
-                post_segment = original_audio[start_time + segment_duration:]
-
-                faded_out_segment = target_segment.fade_out(500)
-                faded_in_segment = desc_audio.fade_in(500)
-
-                original_audio = pre_segment + faded_out_segment.overlay(faded_in_segment) + post_segment
-
-            original_audio.export(str(output_path), format="wav")
-            return output_path
-
-        except Exception as e:
-            logging.error(f"Error merging audio descriptions: {str(e)}")
             raise
 
     def process_video(self, input_path: Path) -> tuple[Path, Path]:
