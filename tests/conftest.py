@@ -5,11 +5,14 @@ from dotenv import load_dotenv
 import os
 import sys
 from pathlib import Path
+from typing import Dict, Any
 from vertexai.generative_models import GenerativeModel
-from unittest.mock import Mock
+from unittest.mock import Mock, MagicMock
 from tests.mocks.youtube_mock import YouTubeAPIMock
-from src.config import Settings
-from src.pipeline.video_pipeline import VideoPipeline
+from app.config import Settings
+from app.pipeline.video_pipeline import VideoPipeline
+from app.services.ai import VertexAIService
+from app.services.video import VideoProcessor
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -153,6 +156,20 @@ def setup_environment(project_root):
     if missing_vars:
         pytest.skip(f"Missing required environment variables: {', '.join(missing_vars)}")
 
+@pytest.fixture(autouse=True)
+def cleanup_test_files(test_data_dir):
+    """Limpia archivos temporales después de cada test"""
+    yield
+    # Limpiar archivos temporales
+    for temp_file in test_data_dir.glob("*.tmp"):
+        temp_file.unlink()
+    for temp_dir in ["downloads", "output"]:
+        temp_path = test_data_dir / temp_dir
+        if temp_path.exists():
+            for file in temp_path.iterdir():
+                file.unlink()
+            temp_path.rmdir()
+
 @pytest.fixture
 def mock_ai_model():
     """Provide mock AI model for testing."""
@@ -199,3 +216,58 @@ def pipeline(monkeypatch):
     monkeypatch.setenv('YOUTUBE_API_KEY', 'test_api_key')
     config = Settings().get_config()
     return VideoPipeline(config)
+
+@pytest.fixture
+def settings():
+    """Proporciona configuración global para los tests"""
+    test_settings = {
+        "VERTEX_LOCATION": "us-central1",
+        "SCENE_DETECTION_THRESHOLD": 30.0,
+        "FRAME_SAMPLE_RATE": 5,
+        "MIN_SCENE_DURATION": 2.0,
+        "DOWNLOAD_PATH": "./tests/data/downloads",
+        "OUTPUT_PATH": "./tests/data/output",
+        "UNE_STANDARDS_PATH": "./tests/data/standards"
+    }
+    return Settings(_env_file="tests/.env.test", **test_settings)
+
+@pytest.fixture
+def video_pipeline(settings):
+    return VideoPipeline(settings)
+
+@pytest.fixture
+def test_video_path():
+    return Path(__file__).parent / "resources" / "test_video.mp4"
+
+@pytest.fixture
+def mock_vertex_ai():
+    """Proporciona un mock completo del servicio VertexAI"""
+    class MockVertexAI(MagicMock):
+        async def generate_description(self, text: str) -> str:
+            return "Mock description generated"
+            
+        async def analyze_frame(self, frame: np.ndarray) -> Dict[str, Any]:
+            return {
+                "description": "Mock frame analysis",
+                "confidence": 0.95,
+                "detected_objects": ["person", "laptop"]
+            }
+    
+    return MockVertexAI()
+
+@pytest.fixture
+def une_validator():
+    """Proporciona validador de estándares UNE"""
+    class UNEValidator:
+        def validate_subtitle(self, text: str, duration: float) -> bool:
+            max_chars = 37
+            max_duration = 4.0
+            return len(text) <= max_chars and duration <= max_duration
+            
+        def validate_audio_description(self, text: str, gap_duration: float) -> bool:
+            max_words = 120
+            min_gap = 2.0
+            words = len(text.split())
+            return words <= max_words and gap_duration >= min_gap
+    
+    return UNEValidator()

@@ -142,3 +142,25 @@ output/temp/**
 .TemporaryItems
 .Trashes
 .VolumeIcon.icns
+
+# Entorno virtual
+venv/
+env/
+
+# Archivos de caché
+__pycache__/
+*.pyc
+
+# Archivos de logs
+logs/
+*.log
+
+# Archivos de entorno
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Otros
+.DS_Store
