@@ -169,3 +169,5 @@ runs/
 output
 output/I Concurso de Cortometrajes sobre familias y su diversidad- El tema del verano_audiodescripcion.mp3
 output/*.mp3
+
+ffmpeg.exe

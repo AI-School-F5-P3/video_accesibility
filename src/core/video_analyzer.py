@@ -3,8 +3,8 @@ import tempfile
 import io
 import os
 import cv2
+import json
 import numpy as np
-import ffmpeg
 import yt_dlp
 import subprocess
 from pathlib import Path
@@ -14,12 +14,15 @@ from google.cloud import vision
 from vertexai.generative_models import GenerativeModel
 from pydantic import BaseModel, field_validator
 from dotenv import load_dotenv
+import torch
 import whisper
 from pydub import AudioSegment
 from pydub.silence import detect_silence
 
 load_dotenv()
 
+model = whisper.load_model("base")
+ffmpeg_path = os.getenv("FFMPEG_PATH", "ffmpeg")
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
@@ -60,25 +63,155 @@ class VideoAnalyzer:
     def __init__(self, model: Optional[GenerativeModel] = None, config: Optional[VideoConfig] = None):
         self.model = model
         self.config = config or VideoConfig()
-        self.silence_threshold = -35
-        self.min_silence_duration = 1.0
+        # Ajustamos los parámetros para mejor detección
+        self.silence_threshold = -35  # dB
+        self.min_silence_duration = 1.0  # segundos
+        self.scene_threshold = 30.0  # umbral para detectar cambios de escena
+        self.min_scene_duration = 2.0  # duración mínima de una escena
+
 
     def detect_scenes(self, video_path: str) -> List[Dict[str, Any]]:
-        return [{'start_time': 0, 'end_time': 5, 'description': 'Escena inicial'}]
-
-    def detect_silence(self, video_path: str) -> Optional[List[Dict[str, float]]]:
         """
-        Detecta silencios en el video usando ffmpeg.
+        Detecta escenas en el video usando análisis de diferencia entre frames.
         """
         try:
-            # Verificar que ffmpeg está instalado
-            try:
-                subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
-            except FileNotFoundError:
-                logger.error("ffmpeg no está instalado en el sistema")
-                return []
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                raise ValueError("No se pudo abrir el video")
 
-            # Extraer audio a un archivo temporal
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            
+            scenes = []
+            prev_frame = None
+            current_scene_start = 0
+            frame_count = 0
+
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+
+                # Convertir frame a escala de grises para comparación
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                
+                if prev_frame is not None:
+                    # Calcular diferencia entre frames
+                    diff = cv2.absdiff(gray, prev_frame)
+                    mean_diff = np.mean(diff)
+
+                    # Detectar cambio de escena
+                    if mean_diff > self.scene_threshold:
+                        current_time = frame_count / fps
+                        if (current_time - current_scene_start) >= self.min_scene_duration:
+                            scenes.append({
+                                'start_time': current_scene_start,
+                                'end_time': current_time,
+                                'description': f'Escena {len(scenes) + 1}',
+                                'frame_diff': float(mean_diff)
+                            })
+                            current_scene_start = current_time
+
+                prev_frame = gray
+                frame_count += 1
+
+            # Añadir última escena
+            if current_scene_start < (total_frames / fps):
+                scenes.append({
+                    'start_time': current_scene_start,
+                    'end_time': total_frames / fps,
+                    'description': f'Escena {len(scenes) + 1}',
+                    'frame_diff': 0.0
+                })
+
+            cap.release()
+            return scenes
+
+        except Exception as e:
+            logger.error(f"Error en detección de escenas: {str(e)}")
+            return []
+        
+    def detect_silence(self, video_path: str) -> List[Dict[str, float]]:
+        """
+        Detecta silencios en el video usando análisis de audio mejorado.
+        """
+        try:
+            # Extraer audio a archivo temporal
+            temp_audio = tempfile.mktemp(suffix='.wav')
+            extract_cmd = [
+                'ffmpeg', '-y',
+                '-i', video_path,
+                '-ac', '1',  # Convertir a mono
+                '-ar', '44100',  # Frecuencia de muestreo estándar
+                '-vn',  # No video
+                temp_audio
+            ]
+            subprocess.run(extract_cmd, capture_output=True, check=True)
+
+            # Cargar audio con pydub para análisis detallado
+            audio = AudioSegment.from_wav(temp_audio)
+            
+            # Detectar silencios usando pydub
+            silence_ranges = detect_silence(
+                audio,
+                min_silence_len=int(self.min_silence_duration * 1000),  # convertir a ms
+                silence_thresh=self.silence_threshold
+            )
+
+            # Procesar y filtrar silencios
+            silences = []
+            for start, end in silence_ranges:
+                duration = (end - start) / 1000.0  # convertir a segundos
+                
+                # Solo incluir silencios significativos
+                if duration >= self.min_silence_duration:
+                    silences.append({
+                        'start': start / 1000.0,
+                        'end': end / 1000.0,
+                        'duration': duration,
+                        'is_dialogue_gap': self._is_dialogue_gap(audio, start, end)
+                    })
+
+            # Limpiar archivo temporal
+            os.remove(temp_audio)
+            
+            return silences
+
+        except Exception as e:
+            logger.error(f"Error en detección de silencios: {str(e)}")
+            return []
+        
+    
+    def _is_dialogue_gap(self, audio: AudioSegment, start_ms: int, end_ms: int) -> bool:
+        """
+        Determina si un silencio es probablemente una pausa entre diálogos.
+        """
+        try:
+            # Analizar el audio antes y después del silencio
+            context_duration = 500  # ms
+            
+            # Obtener segmentos de audio antes y después del silencio
+            before_silence = audio[max(0, start_ms - context_duration):start_ms]
+            after_silence = audio[end_ms:min(len(audio), end_ms + context_duration)]
+            
+            # Calcular volumen promedio antes y después
+            before_volume = before_silence.dBFS if len(before_silence) > 0 else -float('inf')
+            after_volume = after_silence.dBFS if len(after_silence) > 0 else -float('inf')
+            
+            # Si hay audio significativo antes y después, probablemente es una pausa de diálogo
+            threshold = -45  # dB
+            return before_volume > threshold and after_volume > threshold
+            
+        except Exception as e:
+            logger.warning(f"Error analizando gap de diálogo: {str(e)}")
+            return False
+
+    def analyze_audio_content(self, video_path: str) -> Dict[str, Any]:
+        """
+        Analiza el contenido de audio para determinar si hay diálogos o solo música.
+        """
+        try:
+            # Extraer audio para análisis
             temp_audio = tempfile.mktemp(suffix='.wav')
             extract_cmd = [
                 'ffmpeg', '-y',
@@ -88,42 +221,73 @@ class VideoAnalyzer:
                 temp_audio
             ]
             subprocess.run(extract_cmd, capture_output=True, check=True)
-
-            # Detectar silencios
-            cmd = [
-                'ffmpeg', '-i', temp_audio,
-                '-af', f'silencedetect=noise={self.silence_threshold}dB:d={self.min_silence_duration}',
-                '-f', 'null', '-'
-            ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            # Cargar audio con pydub
+            audio = AudioSegment.from_wav(temp_audio)
             
-            # Limpiar archivo temporal
-            try:
-                os.remove(temp_audio)
-            except:
-                pass
-
-            silences = []
-            current_silence = {}
+            # Analizar características del audio
+            segments = len(audio) // 1000  # dividir en segmentos de 1 segundo
+            dialogue_segments = 0
+            music_segments = 0
             
-            for line in result.stderr.split('\n'):
-                if 'silence_start' in line:
-                    current_silence['start'] = float(line.split('silence_start: ')[1])
-                elif 'silence_end' in line and 'start' in current_silence:
-                    current_silence['end'] = float(line.split('silence_end: ')[1])
-                    current_silence['duration'] = current_silence['end'] - current_silence['start']
-                    silences.append(current_silence.copy())
-                    current_silence = {}
-
-            return silences
-
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Error en ffmpeg: {e.stderr if e.stderr else str(e)}")
-            return []
+            for i in range(segments):
+                segment = audio[i*1000:(i+1)*1000]
+                
+                # Análisis básico de frecuencias para distinguir voz de música
+                if self._has_speech_characteristics(segment):
+                    dialogue_segments += 1
+                else:
+                    music_segments += 1
+            
+            # Limpiar
+            os.remove(temp_audio)
+            
+            return {
+                'has_dialogues': dialogue_segments > (segments * 0.1),  # más del 10% con diálogo
+                'has_music': music_segments > (segments * 0.1),
+                'dialogue_percentage': (dialogue_segments / segments) * 100 if segments > 0 else 0,
+                'music_percentage': (music_segments / segments) * 100 if segments > 0 else 0
+            }
+            
         except Exception as e:
-            logger.error(f"Error detectando silencios: {str(e)}")
-            return []
+            logger.error(f"Error en análisis de contenido de audio: {str(e)}")
+            return {
+                'has_dialogues': False,
+                'has_music': False,
+                'error': str(e)
+            }
+        
+    def _has_speech_characteristics(self, audio_segment: AudioSegment) -> bool:
+        """
+        Determina si un segmento de audio contiene características típicas de voz humana.
+        """
+        # Implementación básica - se puede mejorar con análisis espectral más detallado
+        try:
+            # Características típicas de voz humana
+            typical_speech_db = -35
+            typical_speech_variance = 5
+            
+            if len(audio_segment) == 0:
+                return False
+            
+            # Obtener valores de dB para el segmento
+            db_values = [audio_segment[i:i+100].dBFS for i in range(0, len(audio_segment), 100)]
+            db_values = [x for x in db_values if x != float('-inf')]
+            
+            if not db_values:
+                return False
+            
+            # Calcular estadísticas
+            mean_db = sum(db_values) / len(db_values)
+            variance = sum((x - mean_db) ** 2 for x in db_values) / len(db_values)
+            
+            # La voz humana tiende a tener más variación que la música de fondo
+            return (typical_speech_db - 10 <= mean_db <= typical_speech_db + 10 and 
+                    variance >= typical_speech_variance)
+            
+        except Exception as e:
+            logger.warning(f"Error en análisis de características de voz: {str(e)}")
+            return False
 
 # Extractor de Frames
 class FrameExtractor:
