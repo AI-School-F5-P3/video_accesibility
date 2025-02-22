@@ -31,7 +31,8 @@ docopt
 einops                       
 encodec                      
 ffmpeg-python                
-filelock                     
+filelock      
+flask               
 fonttools                    
 frozenlist                   
 fsspec                       
