@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .env
 .venv/
 __pycache__
@@ -8,3 +9,110 @@ ffmpeg.exe
 ffplay.exe
 ffprobe.exe
 data/
+=======
+# Entorno virtual - ampliado para cubrir más casos
+venv/
+.venv/
+env/
+.env/
+*.pyenv
+virtualenv/
+
+# Archivos de Python compilados
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Credenciales y configuración sensible
+src/config/credentials/*.json
+*.key
+*.pem
+.env
+credentials.json
+google_credentials.json
+*_credentials.*
+secrets.*
+
+# Archivos de datos y multimedia
+data/frames/
+data/*.mp4
+data/*.avi
+data/*.mov
+data/*.wav
+data/*.mp3
+data/extracted_frames/
+data/videoplayback.mp4  # Específicamente tu archivo de video
+*.jpg
+*.png
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+
+# Archivos binarios grandes
+*.so
+*.dll
+*.dylib
+*.exe
+*.bin
+
+# Logs y archivos temporales
+*.log
+*.tmp
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*.bak
+*.cache
+*.pid
+
+# Dependencias
+pip-log.txt
+pip-delete-this-directory.txt
+.python-version
+
+# Resultados generados
+data/*.srt
+data/*.vtt
+data/*.json
+output/
+results/
+analysis/
+
+# IDE y editores
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+.project
+.pydevproject
+.settings/
+*.code-workspace
+
+# Sistema operativo
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+>>>>>>> leire_video
