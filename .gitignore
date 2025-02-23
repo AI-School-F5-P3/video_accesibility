@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__
+api-key.json
+/examples
+/output
+ffmpeg.exe
+ffplay.exe
+ffprobe.exe
+data/
