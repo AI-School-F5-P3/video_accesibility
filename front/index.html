@@ -4,16 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MIRESSE - Accesibilidad</title>
-    <!-- Bootstrap CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Google Fonts -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&display=swap" rel="stylesheet">
-    <!-- Custom CSS -->
     <link href="css/styles.css" rel="stylesheet">
 </head>
-<body class="bg-light">
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<body>
+    <!-- Skip link para navegación por teclado -->
+<a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark" role="navigation" aria-label="Navegación principal">
         <div class="container">
             <a class="navbar-brand" href="#">MIRESSE</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -36,131 +36,171 @@
         </div>
     </nav>
 
-    <div class="container py-5">
-        <!-- Header -->
+    <main class="container py-5">
         <header class="text-center mb-5">
-            <h1 class="display-4 fw-bold text-white">MIRESSE</h1>
-            <p class="lead text-white">Audiodescripciones y subtítulos para la accesibilidad</p>
+            <h1 class="display-4">MIRESSE</h1>
+            <p class="lead">Audiodescripciones y subtítulos para la accesibilidad</p>
         </header>
 
-        <!-- Main Content -->
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <!-- Progress Stepper -->
-                <div class="stepper-wrapper mb-4">
-                    <div class="stepper-item active" id="step1">
-                        <div class="step-counter">1</div>
-                        <div class="step-name">Subir Video</div>
-                    </div>
-                    <div class="stepper-item" id="step2">
-                        <div class="step-counter">2</div>
-                        <div class="step-name">Configurar</div>
-                    </div>
-                    <div class="stepper-item" id="step3">
-                        <div class="step-counter">3</div>
-                        <div class="step-name">Procesar</div>
-                    </div>
-                    <div class="stepper-item" id="step4">
-                        <div class="step-counter">4</div>
-                        <div class="step-name">Resultados</div>
-                    </div>
-                </div>
+        <!-- Progress Stepper -->
+        <nav class="stepper-wrapper mb-4">
+            <div class="stepper-item active">
+                <div class="step-counter">1</div>
+                <div class="step-name">Subir Video</div>
+            </div>
+            <div class="stepper-item">
+                <div class="step-counter">2</div>
+                <div class="step-name">Configurar</div>
+            </div>
+            <div class="stepper-item">
+                <div class="step-counter">3</div>
+                <div class="step-name">Procesar</div>
+            </div>
+            <div class="stepper-item">
+                <div class="step-counter">4</div>
+                <div class="step-name">Resultados</div>
+            </div>
+        </nav>
 
-                <div class="card shadow-sm">
+        <div class="row">
+            <!-- Columna Izquierda: Opciones de entrada -->
+            <div class="col-lg-5">
+                <div class="card shadow-sm h-100">
                     <div class="card-body p-4">
-                        <!-- URL Input Section -->
-                        <section class="mb-5">
-                            <h2 class="h4 mb-3">
+                        <h2 class="h4 mb-4">
+                            <i class="bi bi-film"></i> Entrada de Video
+                        </h2>
+
+                        <!-- URL Input -->
+                        <section class="mb-4">
+                            <h3 class="h5">
                                 <i class="bi bi-link"></i> Análisis por URL
-                            </h2>
-                            <form id="urlForm">
-                                <div class="mb-3">
-                                    <input type="url" class="form-control" id="videoUrl" 
-                                           placeholder="Introduce la URL del video" required>
-                                </div>
-                                <button type="submit" class="btn btn-custom">
-                                    <i class="bi bi-play-fill"></i> Analizar URL
+                            </h3>
+                            <div class="input-group">
+                                <input type="url" class="form-control" id="videoUrl" 
+                                       placeholder="Introduce la URL del video">
+                                <button class="btn btn-outline-secondary" type="button" id="clearUrl">
+                                    <i class="bi bi-x-lg"></i>
                                 </button>
-                            </form>
+                            </div>
                         </section>
 
-                        <!-- File Upload Section -->
-                        <section class="mb-5">
-                            <h2 class="h4 mb-3">
+                        <div class="text-center my-3">
+                            <span class="text-muted">- o -</span>
+                        </div>
+
+                        <!-- File Upload -->
+                        <section>
+                            <h3 class="h5">
                                 <i class="bi bi-upload"></i> Subir Video
-                            </h2>
-                            <div class="upload-area p-4 text-center border border-2 border-dashed rounded">
+                            </h3>
+                            <div class="upload-area p-4 text-center">
                                 <input type="file" id="videoFile" accept="video/*" class="d-none">
-                                <label for="videoFile" class="mb-0 cursor-pointer">
+                                <label for="videoFile" class="mb-0">
                                     <i class="bi bi-cloud-upload display-6 mb-3"></i>
-                                    <p class="mb-0">Arrastra tu video aquí o haz clic para seleccionar</p>
-                                    <small class="text-muted">Formatos soportados: MP4, AVI, MOV (máx. 100MB)</small>
+                                    <p>Arrastra tu video aquí o haz clic para seleccionar</p>
+                                    <small class="text-muted">Formatos: MP4, AVI, MOV (máx. 100MB)</small>
                                 </label>
                             </div>
                             <div id="uploadPreview" class="mt-3 d-none">
                                 <video id="videoPreview" class="w-100" controls></video>
-                                <div class="mt-2">
-                                    <button class="btn btn-sm btn-danger" id="removeVideo">
-                                        <i class="bi bi-trash"></i> Eliminar
-                                    </button>
-                                </div>
+                                <button class="btn btn-sm btn-danger mt-2" id="removeVideo">
+                                    <i class="bi bi-trash"></i> Eliminar
+                                </button>
                             </div>
                         </section>
+                    </div>
+                </div>
+            </div>
 
-                        <!-- Analysis Options -->
-                        <section>
-                            <h2 class="h4 mb-3">
-                                <i class="bi bi-gear"></i> Opciones de Análisis
-                            </h2>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="card mb-3">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Audiodescripción</h5>
-                                            <div class="form-check mb-2">
-                                                <input class="form-check-input" type="checkbox" id="audioDesc">
-                                                <label class="form-check-label" for="audioDesc">
-                                                    Generar audiodescripción
-                                                </label>
+            <!-- Columna Derecha: Opciones de configuración -->
+            <div class="col-lg-7">
+                <div class="card shadow-sm">
+                    <div class="card-body p-4">
+                        <h2 class="h4 mb-4">
+                            <i class="bi bi-gear"></i> Opciones de Análisis
+                        </h2>
+
+                        <div class="row g-4">
+                            <!-- Audiodescripción -->
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h3 class="h5">Audiodescripción</h3>
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="audioDesc">
+                                            <label class="form-check-label" for="audioDesc">
+                                                Generar audiodescripción
+                                            </label>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Voz para narración</label>
+                                            <select class="form-select" id="voiceSelect">
+                                                <option value="es-ES-F">Española (Mujer)</option>
+                                                <option value="es-ES-M">Español (Hombre)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Subtítulos -->
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h3 class="h5">Subtítulos</h3>
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="subtitles">
+                                            <label class="form-check-label" for="subtitles">
+                                                Generar subtítulos
+                                            </label>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Formato de salida</label>
+                                            <select class="form-select" id="subtitleFormat">
+                                                <option value="srt">SRT</option>
+                                                <option value="vtt">VTT</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Opciones adicionales -->
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h3 class="h5">Opciones adicionales</h3>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Calidad de salida</label>
+                                                <select class="form-select" id="outputQuality">
+                                                    <option value="high">Alta calidad</option>
+                                                    <option value="medium">Calidad media</option>
+                                                    <option value="low">Calidad baja</option>
+                                                </select>
                                             </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Voz para narración</label>
-                                                <select class="form-select" id="voiceSelect">
-                                                    <option value="es-ES-F">Española (Mujer)</option>
-                                                    <option value="es-ES-M">Español (Hombre)</option>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Idioma objetivo</label>
+                                                <select class="form-select" id="targetLanguage">
+                                                    <option value="es">Español</option>
+                                                    <option value="en">Inglés</option>
+                                                    <option value="fr">Francés</option>
                                                 </select>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="card mb-3">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Subtítulos</h5>
-                                            <div class="form-check mb-2">
-                                                <input class="form-check-input" type="checkbox" id="subtitles">
-                                                <label class="form-check-label" for="subtitles">
-                                                    Generar subtítulos
-                                                </label>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Formato de salida</label>
-                                                <select class="form-select" id="subtitleFormat">
-                                                    <option value="srt">SRT</option>
-                                                    <option value="vtt">VTT</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
-                        </section>
+                        </div>
 
-                        <!-- Process Button -->
                         <div class="text-center mt-4">
                             <button class="btn btn-lg btn-custom" id="processBtn">
-                                <i class="bi bi-play-circle"></i> Iniciar Procesamiento
+                                <i class="bi bi-play-circle"></i> Procesar Video
                             </button>
+                            <div class="text-muted small mt-2">
+                                Se procesará el video desde URL o archivo según lo seleccionado
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -169,62 +209,25 @@
                 <div id="processingStatus" class="mt-4 d-none">
                     <div class="card">
                         <div class="card-body">
-                            <h5 class="card-title">Estado del Procesamiento</h5>
+                            <h2 class="h5">Estado del Procesamiento</h2>
                             <div class="progress mb-3">
                                 <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                                     role="progressbar" style="width: 0%"></div>
+                                     role="progressbar"></div>
                             </div>
-                            <div id="statusText" class="text-muted">
-                                Preparando procesamiento...
-                            </div>
-                            <div id="estimatedTime" class="small text-muted mt-2">
-                                Tiempo estimado: calculando...
-                            </div>
+                            <p id="statusText" class="text-muted mb-1">Preparando procesamiento...</p>
+                            <p id="estimatedTime" class="small text-muted">Tiempo estimado: calculando...</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Results Section -->
                 <div id="resultsSection" class="mt-4 d-none">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Resultados</h5>
-                            <ul class="nav nav-tabs" id="resultTabs">
-                                <li class="nav-item">
-                                    <a class="nav-link active" data-bs-toggle="tab" href="#previewTab">
-                                        Vista Previa
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" data-bs-toggle="tab" href="#downloadTab">
-                                        Descargas
-                                    </a>
-                                </li>
-                            </ul>
-                            <div class="tab-content mt-3">
-                                <div class="tab-pane fade show active" id="previewTab">
-                                    <video id="resultVideo" class="w-100" controls></video>
-                                </div>
-                                <div class="tab-pane fade" id="downloadTab">
-                                    <div class="list-group">
-                                        <a href="#" class="list-group-item list-group-item-action">
-                                            <i class="bi bi-film"></i> Video con audiodescripción
-                                        </a>
-                                        <a href="#" class="list-group-item list-group-item-action">
-                                            <i class="bi bi-card-text"></i> Archivo de subtítulos
-                                        </a>
-                                        <a href="#" class="list-group-item list-group-item-action">
-                                            <i class="bi bi-file-text"></i> Informe de análisis
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- [Contenido previo de resultados...] -->
                 </div>
             </div>
         </div>
-    </div>
+    </main>
+
 
     <!-- History Modal -->
     <div class="modal fade" id="historyModal">
