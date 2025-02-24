@@ -19,3 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
       );
     }
   });
+
+  console.log('Video processor script loaded');
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded in video processor script');});

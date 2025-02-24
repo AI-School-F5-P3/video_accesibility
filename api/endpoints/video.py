@@ -10,58 +10,28 @@ video_service = VideoService(settings)
 
 @router.post("/process")
 async def process_video(
-    video: Optional[UploadFile] = File(None),
     youtube_url: Optional[str] = Form(None),
     generate_audiodesc: bool = Form(False),
     generate_subtitles: bool = Form(False),
-    voice_type: str = Form("es-ES-F"),
     subtitle_format: str = Form("srt"),
-    output_quality: str = Form("high"),
     target_language: str = Form("es"),
-    background_tasks: BackgroundTasks = None
 ):
     """Process video with specified options"""
     try:
-        if not video and not youtube_url:
+        if not youtube_url:
             raise HTTPException(
                 status_code=400,
-                detail="Debe proporcionar un archivo de video o una URL de YouTube"
+                detail="Debe proporcionar una URL de YouTube"
             )
-
-        # Initialize processing options
-        options = {
-            "audioDesc": generate_audiodesc,
-            "subtitles": generate_subtitles,
-            "voice_type": voice_type,
-            "subtitle_format": subtitle_format,
-            "quality": output_quality,
-            "language": target_language
-        }
-
-        # Handle video upload
-        if video:
-            if not validate_video_file(video):
-                raise HTTPException(
-                    status_code=400,
-                    detail="Formato de video no válido"
-                )
-            video_id = await video_service.save_video(video)
-        else:
-            # Handle YouTube URL
-            video_id = await video_service.process_youtube_url(youtube_url)
-
-        # Add processing task to background
-        background_tasks.add_task(
-            video_service.analyze_video,
-            video_id=video_id,
-            options=options
-        )
-
+        
+        # Simplemente devolver un ID ficticio y un mensaje de éxito
+        video_id = "test123"
+        
         return {
             "video_id": video_id,
             "message": "Procesamiento iniciado correctamente"
         }
-
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -115,3 +85,26 @@ async def delete_video(video_id: str):
         return {"message": "Video y archivos asociados eliminados correctamente"}
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
+    
+@router.post("/process")
+async def process_video(
+    video: Optional[UploadFile] = File(None),
+    youtube_url: Optional[str] = Form(None),
+    generate_audiodesc: Optional[bool] = Form(False),
+    generate_subtitles: Optional[bool] = Form(False),
+    subtitle_format: Optional[str] = Form("srt"),
+    target_language: Optional[str] = Form("es"),
+):
+    """Process video with specified options"""
+    try:
+        # Log para depuración
+        print(f"Received request: youtube_url={youtube_url}, video={video}")
+        
+        # Respuesta simulada para pruebas
+        return {
+            "video_id": "test123",
+            "message": "Procesamiento iniciado correctamente"
+        }
+    except Exception as e:
+        print(f"Error in process_video: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e)) 

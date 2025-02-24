@@ -1,3 +1,7 @@
+console.log('Main.js cargado correctamente');
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM cargado, inicializando scripts...');
+
 document.addEventListener('DOMContentLoaded', function() {
     // Elements
     const videoUrlInput = document.getElementById('videoUrl');
@@ -91,12 +95,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Añadir opciones
             formData.append('generate_audiodesc', document.getElementById('audioDesc').checked);
             formData.append('generate_subtitles', document.getElementById('subtitles').checked);
-            formData.append('voice_type', document.getElementById('voiceSelect').value);
-            formData.append('subtitle_format', document.getElementById('subtitleFormat').value);
-            formData.append('output_quality', document.getElementById('outputQuality').value);
-            formData.append('target_language', document.getElementById('targetLanguage').value);
+            formData.append('subtitle_format', 'srt'); // Valor por defecto
+            formData.append('target_language', 'es'); // Valor por defecto
 
-            // Enviar a la API
+            // Enviar a la API correcta
             const response = await fetch('/api/v1/videos/process', {
                 method: 'POST',
                 body: formData
@@ -112,6 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
             startProcessingCheck();
             
         } catch (error) {
+            console.error('Error processing:', error);
             showError('Error al procesar el video: ' + error.message);
         }
     });
@@ -139,6 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showError(message) {
+        console.error('Error:', message);
         const alert = `
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 ${message}
@@ -154,7 +158,9 @@ document.addEventListener('DOMContentLoaded', function() {
         videoPreview.src = '';
         uploadPreview.classList.add('d-none');
         processingStatus.classList.add('d-none');
-        resultsSection.classList.add('d-none');
+        if (resultsSection) {
+            resultsSection.classList.add('d-none');
+        }
         currentVideoId = null;
         if (processingInterval) {
             clearInterval(processingInterval);
@@ -186,22 +192,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 const status = await response.json();
+                console.log('Status update:', status);
                 
-                progress = status.progress || progress;
-                progressBar.style.width = `${progress}%`;
-                statusText.textContent = status.current_step || 'Procesando...';
+                // Update progress
+                if (status.progress !== undefined) {
+                    progress = status.progress;
+                    progressBar.style.width = `${progress}%`;
+                }
                 
-                // Calcular tiempo estimado en base al progreso
+                // Update status message
+                if (status.current_step) {
+                    statusText.textContent = status.current_step;
+                }
+                
+                // Calculate estimated time
                 if (progress > 0) {
                     const timeRemaining = Math.round((100 - progress) / (progress / 10));
                     estimatedTime.textContent = `Tiempo estimado: ${timeRemaining} segundos`;
                 }
 
+                // Check if processing is completed
                 if (status.status === 'completed') {
                     clearInterval(processingInterval);
                     updateStep(4);
                     await handleProcessingResults(currentVideoId);
-                } else if (status.status === 'error') {
+                } 
+                // Check for errors
+                else if (status.status === 'error') {
                     clearInterval(processingInterval);
                     showError(status.error || 'Error en el procesamiento');
                 }
@@ -222,53 +239,79 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const results = await response.json();
-            resultsSection.classList.remove('d-none');
-
-            // Actualizar pestaña de descargas
-            const downloadTab = document.getElementById('downloadTab');
-            if (downloadTab) {
-                downloadTab.innerHTML = `
-                    <div class="list-group">
-                        ${results.outputs.subtitles ? `
+            console.log('Processing results:', results);
+            
+            // Si hay un elemento de resultados, mostrarlo
+            if (resultsSection) {
+                resultsSection.classList.remove('d-none');
+                
+                // Si hay un elemento para descargas, actualizarlo
+                const downloadTab = document.getElementById('downloadTab');
+                if (downloadTab) {
+                    let downloadContent = '<div class="list-group">';
+                    
+                    if (results.outputs && results.outputs.subtitles) {
+                        downloadContent += `
                             <a href="/api/v1/subtitles/${videoId}?download=true" class="list-group-item list-group-item-action">
                                 <i class="bi bi-card-text"></i> Subtítulos
-                                <span class="badge bg-info float-end">${results.outputs.subtitle_format || 'SRT'}</span>
+                                <span class="badge bg-info float-end">SRT</span>
                             </a>
-                        ` : ''}
-                        
-                        ${results.outputs.audio_description ? `
+                        `;
+                    }
+                    
+                    if (results.outputs && results.outputs.audio_description) {
+                        downloadContent += `
                             <a href="/api/v1/audiodesc/${videoId}?download=true" class="list-group-item list-group-item-action">
                                 <i class="bi bi-file-earmark-music"></i> Audiodescripción
                                 <span class="badge bg-success float-end">WAV</span>
                             </a>
-                        ` : ''}
-                    </div>
-
+                        `;
+                    }
+                    
+                    downloadContent += `</div>
                     <div class="mt-3">
-                        <h6>Resumen del Procesamiento:</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="bi bi-check-circle-fill"></i> Procesamiento completado</li>
-                            <li><i class="bi bi-clock"></i> ID: ${videoId}</li>
-                        </ul>
+                        <h6>Procesamiento completado</h6>
+                        <p>ID del video: ${videoId}</p>
+                    </div>`;
+                    
+                    downloadTab.innerHTML = downloadContent;
+                }
+                
+                // Si hay un elemento de video para reproducir los resultados
+                const resultVideo = document.getElementById('resultVideo');
+                if (resultVideo && results.outputs && results.outputs.subtitles) {
+                    // Limpiar tracks existentes
+                    while (resultVideo.firstChild) {
+                        resultVideo.removeChild(resultVideo.firstChild);
+                    }
+                    
+                    // Añadir subtítulos
+                    const track = document.createElement('track');
+                    track.kind = 'subtitles';
+                    track.label = 'Español';
+                    track.srclang = 'es';
+                    track.src = `/api/v1/subtitles/${videoId}?download=true`;
+                    resultVideo.appendChild(track);
+                }
+            } else {
+                // Si no hay sección de resultados, mostrar un mensaje
+                const successMessage = `
+                    <div class="alert alert-success">
+                        <h4>¡Procesamiento completado!</h4>
+                        <p>El video ha sido procesado correctamente.</p>
+                        <div class="mt-2">
+                            <a href="/api/v1/subtitles/${videoId}?download=true" class="btn btn-primary">Descargar Subtítulos</a>
+                            ${results.outputs && results.outputs.audio_description ? 
+                            `<a href="/api/v1/audiodesc/${videoId}?download=true" class="btn btn-secondary ms-2">Descargar Audiodescripción</a>` 
+                            : ''}
+                        </div>
                     </div>
                 `;
+                processingStatus.innerHTML = successMessage;
             }
-
-            // Actualizar video con subtítulos si existe
-            const resultVideo = document.getElementById('resultVideo');
-            if (resultVideo && results.outputs.subtitles) {
-                // Añadir subtítulos si existen
-                const track = document.createElement('track');
-                track.kind = 'subtitles';
-                track.label = 'Español';
-                track.srclang = 'es';
-                track.src = `/api/v1/subtitles/${videoId}?download=true`;
-                resultVideo.appendChild(track);
-            }
-
         } catch (error) {
             console.error('Error al obtener resultados:', error);
             showError('Error al cargar los resultados del procesamiento');
         }
     }
-});
+});});
