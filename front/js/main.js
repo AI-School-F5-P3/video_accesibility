@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Elements
+    // Elementos del DOM
     const urlForm = document.getElementById('urlForm');
     const videoUrlInput = document.getElementById('videoUrl');
     const fileInput = document.getElementById('videoFile');
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentVideoId = null;
     let processingInterval = null;
 
-    // URL form submission
+    // Envío del formulario de URL
     urlForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         const url = videoUrlInput.value;
@@ -24,27 +24,33 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 updateStep(1);
                 showProcessingStatus();
+                const formData = new FormData();
+                formData.append("youtube_url", url);
+                formData.append("generate_audiodesc", document.getElementById('audioDesc').checked);
+                formData.append("generate_subtitles", document.getElementById('subtitles').checked);
+                formData.append("voice_type", document.getElementById('voiceSelect').value);
+                formData.append("subtitle_format", document.getElementById('subtitleFormat').value);
+                formData.append("output_quality", document.getElementById('outputQuality').value);
+                formData.append("target_language", document.getElementById('targetLanguage').value);
+  
                 const response = await fetch('/api/v1/videos/url', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ url })
+                    body: formData
                 });
-                
+  
                 if (!response.ok) throw new Error('Error al procesar la URL');
-                
+  
                 const data = await response.json();
-                currentVideoId = data.videoId;
+                currentVideoId = data.video_id;
                 startProcessingCheck();
-                
+  
             } catch (error) {
                 showError('Error al procesar la URL: ' + error.message);
             }
         }
     });
 
-    // File upload handling
+    // Manejo de la subida de archivos
     fileInput.addEventListener('change', async function(e) {
         const file = e.target.files[0];
         if (file) {
@@ -63,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Drag and drop functionality
+    // Funcionalidad de drag and drop
     uploadArea.addEventListener('dragover', function(e) {
         e.preventDefault();
         this.classList.add('dragging');
@@ -96,7 +102,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Process button click
+    // Al hacer clic en "Procesar Video" (para videos subidos)
     processBtn.addEventListener('click', async function() {
         if (!currentVideoId) {
             showError('Por favor, sube un video primero');
@@ -108,10 +114,12 @@ document.addEventListener('DOMContentLoaded', function() {
             showProcessingStatus();
             
             const options = {
-                audioDescription: document.getElementById('audioDesc').checked,
-                subtitles: document.getElementById('subtitles').checked,
-                voice: document.getElementById('voiceSelect').value,
-                subtitleFormat: document.getElementById('subtitleFormat').value
+                generate_audiodesc: document.getElementById('audioDesc').checked,
+                generate_subtitles: document.getElementById('subtitles').checked,
+                voice_type: document.getElementById('voiceSelect').value,
+                subtitle_format: document.getElementById('subtitleFormat').value,
+                output_quality: document.getElementById('outputQuality').value,
+                target_language: document.getElementById('targetLanguage').value
             };
 
             const response = await fetch(`/api/v1/videos/${currentVideoId}/process`, {
@@ -131,12 +139,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Remove video button
+    // Botón para eliminar video (reinicia la subida)
     removeVideoBtn?.addEventListener('click', function() {
         resetUpload();
     });
 
-    // Helper functions
+    // Función para subir el archivo al endpoint /upload
     async function uploadFile(file) {
         const formData = new FormData();
         formData.append('video', file);
@@ -149,25 +157,29 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!response.ok) throw new Error('Error al subir el archivo');
         
         const data = await response.json();
-        currentVideoId = data.videoId;
+        currentVideoId = data.video_id;
     }
 
+    // Validación básica de archivo
     function validateFile(file) {
         const maxSize = 100 * 1024 * 1024; // 100MB
         const validTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
         return file.size <= maxSize && validTypes.includes(file.type);
     }
 
+    // Muestra la previsualización del video
     function showFilePreview(file) {
         const url = URL.createObjectURL(file);
         videoPreview.src = url;
         uploadPreview.classList.remove('d-none');
     }
 
+    // Muestra el estado de procesamiento
     function showProcessingStatus() {
         processingStatus.classList.remove('d-none');
     }
 
+    // Muestra mensajes de error
     function showError(message) {
         const alert = `
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -179,6 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
         processingStatus.classList.remove('d-none');
     }
 
+    // Reinicia la subida y limpia el estado
     function resetUpload() {
         fileInput.value = '';
         videoPreview.src = '';
@@ -191,6 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateStep(1);
     }
 
+    // Actualiza la interfaz del "stepper"
     function updateStep(step) {
         document.querySelectorAll('.stepper-item').forEach((item, index) => {
             if (index + 1 < step) {
@@ -205,6 +219,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Chequea periódicamente el estado del procesamiento
     function startProcessingCheck() {
         let progress = 0;
         processingInterval = setInterval(async () => {
@@ -232,51 +247,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 2000);
     }
 
-    // Results handling
+    // Manejo de los resultados del procesamiento
     async function handleProcessingResults(videoId) {
         try {
-            const response = await fetch(`/api/v1/videos/${videoId}/results`);
+            const response = await fetch(`/api/v1/videos/${videoId}/result`);
             const results = await response.json();
 
             const resultsSection = document.getElementById('resultsSection');
             resultsSection.classList.remove('d-none');
 
-            // Actualizar video con subtítulos y audiodescripción
+            // Actualiza el video de resultados (si existe processed_video_url)
             const resultVideo = document.getElementById('resultVideo');
-            resultVideo.src = results.processedVideoUrl;
+            resultVideo.src = results.outputs.processed_video_url || '';
 
-            // Añadir subtítulos si existen
-            if (results.subtitles) {
+            // Agrega subtítulos si existen
+            if (results.outputs.subtitles) {
                 const track = document.createElement('track');
                 track.kind = 'subtitles';
                 track.label = 'Español';
                 track.srclang = 'es';
-                track.src = results.subtitles.url;
+                track.src = results.outputs.subtitles;
                 resultVideo.appendChild(track);
             }
 
-            // Actualizar pestaña de descargas
+            // Actualiza la sección de descargas
             const downloadTab = document.getElementById('downloadTab');
             downloadTab.innerHTML = `
                 <div class="list-group">
-                    ${results.processedVideoUrl ? `
-                        <a href="${results.processedVideoUrl}" class="list-group-item list-group-item-action" download>
+                    ${results.outputs.processed_video_url ? `
+                        <a href="${results.outputs.processed_video_url}" class="list-group-item list-group-item-action" download>
                             <i class="bi bi-film"></i> Video Procesado
-                            <span class="badge bg-primary float-end">${results.videoFormat}</span>
                         </a>
                     ` : ''}
                     
-                    ${results.subtitles ? `
-                        <a href="${results.subtitles.url}" class="list-group-item list-group-item-action" download>
+                    ${results.outputs.subtitles ? `
+                        <a href="${results.outputs.subtitles}" class="list-group-item list-group-item-action" download>
                             <i class="bi bi-card-text"></i> Subtítulos
-                            <span class="badge bg-info float-end">${results.subtitles.format}</span>
                         </a>
                     ` : ''}
                     
-                    ${results.audioDescription ? `
-                        <a href="${results.audioDescription.url}" class="list-group-item list-group-item-action" download>
+                    ${results.outputs.audio_description ? `
+                        <a href="${results.outputs.audio_description}" class="list-group-item list-group-item-action" download>
                             <i class="bi bi-file-earmark-music"></i> Audiodescripción
-                            <span class="badge bg-success float-end">${results.audioDescription.format}</span>
                         </a>
                     ` : ''}
                 </div>
@@ -284,9 +296,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="mt-3">
                     <h6>Resumen del Procesamiento:</h6>
                     <ul class="list-unstyled">
-                        <li><i class="bi bi-clock"></i> Duración: ${results.duration}</li>
-                        <li><i class="bi bi-camera-video"></i> Escenas detectadas: ${results.scenesCount}</li>
-                        <li><i class="bi bi-chat-dots"></i> Líneas de diálogo: ${results.dialoguesCount}</li>
+                        <li><i class="bi bi-clock"></i> Duración: ${results.duration || ''}</li>
+                        <li><i class="bi bi-camera-video"></i> Escenas detectadas: ${results.scenesCount || ''}</li>
+                        <li><i class="bi bi-chat-dots"></i> Líneas de diálogo: ${results.dialoguesCount || ''}</li>
                     </ul>
                 </div>
             `;
