@@ -1,4 +1,4 @@
-# Sistema de Accesibilidad de Video
+# Video Accessibility Project
 
 ## Estructura del Proyecto
 ```
@@ -9,11 +9,14 @@
 └── docs/            # Documentación adicional
 ```
 
-## Requisitos Previos
+## Requisitos
 - Node.js >= 16.x
-- Python >= 3.8
+- Python 3.11+
 - Google Cloud SDK
 - FFmpeg
+- OpenCV
+- Google Cloud Platform credentials
+- YouTube API key
 
 ## Configuración
 1. Configurar credenciales de Google Cloud:
@@ -21,7 +24,14 @@
 export GOOGLE_APPLICATION_CREDENTIALS="path/to/service-account.json"
 ```
 
-2. Instalar dependencias:
+2. Crear archivo `.env`:
+```bash
+GOOGLE_CLOUD_PROJECT=your-project-id
+VERTEX_LOCATION=us-central1
+YOUTUBE_API_KEY=your-youtube-api-key
+```
+
+3. Instalar dependencias:
 ```bash
 npm install   # Frontend y Backend
 pip install -r requirements.txt  # Servicios Python

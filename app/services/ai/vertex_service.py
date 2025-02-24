@@ -24,35 +24,20 @@ class VertexAIService:
             raise
 
     async def generate_description(self, transcript: str) -> str:
-        """Genera una descripción accesible del texto"""
+        """Genera una descripción del texto usando VertexAI"""
         try:
-            prompt = (
-                "Genera una descripción accesible y detallada del siguiente texto, "
-                "enfocándote en claridad y contexto para personas con discapacidad visual:\n\n"
-                f"{transcript}"
-            )
-            
-            response = await self.text_model.predict_async(
-                prompt,
-                max_output_tokens=1024,
-                temperature=0.2,
-                top_p=0.8,
-                top_k=40
-            )
+            prompt = f"Genera una descripción accesible del siguiente texto: {transcript}"
+            response = await self.text_model.predict_async(prompt)
             return response.text
         except Exception as e:
-            self.logger.error(f"Error en Vertex AI text generation: {e}")
+            self.logger.error(f"Error generando descripción: {e}")
             raise
 
-    async def analyze_frame(self, frame: np.ndarray) -> str:
-        """Analiza un frame del video usando el modelo de visión"""
+    async def analyze_frame(self, frame_data: np.ndarray) -> str:
+        """Analiza un frame usando VertexAI Vision"""
         try:
-            response = await self.vision_model.predict_async(
-                image=frame,
-                number_of_results=1,
-                language="es"
-            )
+            response = await self.vision_model.predict_async(frame_data)
             return response.caption
         except Exception as e:
-            self.logger.error(f"Error en Vertex AI frame analysis: {e}")
+            self.logger.error(f"Error analizando frame: {e}")
             raise

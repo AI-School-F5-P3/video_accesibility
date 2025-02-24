@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from src.core.audio_processor import AudioProcessor
+from app.core.audio_processor import AudioProcessor
 
 def test_silence_detection(mocker, une_standards):
     """

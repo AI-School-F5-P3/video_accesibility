@@ -1,7 +1,7 @@
 # tests/test_speech_processor.py
 import pytest
 import numpy as np
-from src.core.speech_processor import SpeechProcessor
+from app.core.speech_processor import SpeechProcessor
 
 def test_transcription_accuracy(mocker, mock_ai_model):
     """

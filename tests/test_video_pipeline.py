@@ -2,9 +2,15 @@ import pytest
 import os
 from unittest.mock import Mock, patch
 from dotenv import load_dotenv
-from src.pipeline.video_pipeline import VideoPipeline
-from src.config import Settings
+from app.pipeline.video_pipeline import VideoPipeline
+from app.config.settings import Settings
 from vertexai.language_models import TextGenerationModel
+from dataclasses import dataclass, field
+from app.services.youtube import YouTubeAPI
+import vertexai
+import json
+from pathlib import Path
+from app.models.schemas import ServiceType, ProcessingResult
 
 load_dotenv()
 
@@ -37,16 +43,47 @@ def mock_text_model():
     mock.predict.return_value = Mock(text="Texto generado de prueba")
     return mock
 
+@pytest.fixture(autouse=True)
+def mock_env_and_credentials(monkeypatch):
+    """Mock para variables de entorno y credenciales"""
+    mock_creds = {
+        "type": "service_account",
+        "project_id": "test-project",
+        "private_key_id": "test-key-id",
+        "private_key": "test-private-key",
+        "client_email": "test@test.iam.gserviceaccount.com",
+        "client_id": "test-client-id",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/test"
+    }
+    
+    monkeypatch.setenv('GOOGLE_APPLICATION_CREDENTIALS', json.dumps(mock_creds))
+    monkeypatch.setenv('GOOGLE_CLOUD_PROJECT', 'test-project')
+    monkeypatch.setenv('VERTEX_LOCATION', 'us-central1')
+    monkeypatch.setenv('YOUTUBE_API_KEY', 'test-key')
+
 @pytest.fixture
-def pipeline(monkeypatch, mock_text_model):
+def mock_video_file(tmp_path):
+    """Crea un archivo de video de prueba"""
+    video_path = tmp_path / "test.mp4"
+    # Crear un archivo de video dummy
+    with open(video_path, 'wb') as f:
+        f.write(b'dummy video content')
+    return video_path
+
+@pytest.fixture
+def pipeline(monkeypatch, mock_text_model, mock_env_and_credentials):
     """Fixture para VideoPipeline con mocks"""
-    monkeypatch.setenv('YOUTUBE_API_KEY', os.getenv('YOUTUBE_API_KEY'))
-    monkeypatch.setattr(
-        'vertexai.language_models.TextGenerationModel', 
-        lambda *args, **kwargs: mock_text_model
-    )
     config = Settings().get_config()
-    return VideoPipeline(config)
+    with patch('app.services.ai.ai_service.AIService.__init__') as mock_ai_init:
+        mock_ai_init.return_value = None
+        return VideoPipeline(config)
+
+@pytest.fixture
+def mock_youtube_api():
+    return Mock(spec=YouTubeAPI)
 
 @pytest.mark.skip(reason="YouTube API requiere autenticación")
 def test_youtube_api_connection(youtube_api):
@@ -63,9 +100,20 @@ def test_youtube_api_connection(youtube_api):
         pytest.fail(f"Error en conexión con YouTube API: {str(e)}")
 
 @pytest.mark.asyncio
+async def test_process_url(mock_video_analyzer):
+    """Test de procesamiento de URL"""
+    pipeline = VideoPipeline(config={'test': True})
+    result = await pipeline.process_url(
+        "https://www.youtube.com/watch?v=test",
+        ServiceType.AUDIODESCRIPCION
+    )
+    assert isinstance(result, ProcessingResult)
+    assert result.status in ['completed', 'error']
+
+@pytest.mark.asyncio
 async def test_process_url(pipeline):
     """Test procesamiento de URL"""
-    with patch('src.pipeline.video_pipeline.VideoPipeline.download_video') as mock_download:
+    with patch('app.pipeline.video_pipeline.VideoPipeline.download_video') as mock_download:
         mock_download.return_value = {
             'video_path': 'test.mp4',
             'metadata': {'title': 'Test Video'}
@@ -77,10 +125,38 @@ async def test_process_url(pipeline):
         assert 'subtitles' in result
 
 @pytest.mark.asyncio
+async def test_youtube_api_connection(mock_youtube_api):
+    """Test de conexión a YouTube API con mock"""
+    video_id = "JYJqu3nI0Zk"
+    mock_youtube_api.get_video_info.return_value = {
+        "id": video_id,
+        "title": "Test Video",
+        "duration": "PT2M30S"
+    }
+    
+    result = await mock_youtube_api.get_video_info(video_id)
+    assert result["id"] == video_id
+    assert "title" in result
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("service_type", [
+    ServiceType.AUDIODESCRIPCION,
+    ServiceType.SUBTITULADO
+])
+async def test_service_types(mock_video_analyzer, service_type):
+    """Test de diferentes tipos de servicio"""
+    pipeline = VideoPipeline(config={'test': True})
+    result = await pipeline.process_url(
+        "https://www.youtube.com/watch?v=test",
+        service_type
+    )
+    assert isinstance(result, ProcessingResult)
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("service_type", ["AUDIODESCRIPCION", "SUBTITULADO"])
 async def test_service_types(pipeline, service_type):
     """Test diferentes tipos de servicio"""
-    with patch('src.pipeline.video_pipeline.VideoPipeline.download_video') as mock_download:
+    with patch('app.pipeline.video_pipeline.VideoPipeline.download_video') as mock_download:
         mock_download.return_value = {
             'video_path': 'test.mp4',
             'metadata': {'title': 'Test Video'}

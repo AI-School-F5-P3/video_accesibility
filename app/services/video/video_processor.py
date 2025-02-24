@@ -1,141 +1,162 @@
+from typing import Dict, Any, Optional, List
+from pathlib import Path
 import cv2
 import numpy as np
-from pathlib import Path
-from typing import List, Tuple, Optional
+from ...config.settings import Settings
+from ...core.error_handler import ProcessingError, ErrorType, ErrorDetails
 import logging
-from app.models import VideoMetadata, Scene, Transcript
-from app.config import Settings
-from app.utils.formatters import format_timestamp
+import torch
 import whisper
 from stable_whisper import modify_model
-import torch
+from app.models import VideoMetadata, Scene, Transcript
+from app.utils.validators import validate_video_format
 
 logger = logging.getLogger(__name__)
 
+class Settings:
+    def __init__(self):
+        self.SCENE_DETECTION_THRESHOLD = 0.3  # Valor por defecto
+        # ...existing code...
+
+    def get_config(self) -> Dict[str, Any]:
+        return {
+            # ...existing code...
+            'video_config': {
+                'SCENE_DETECTION_THRESHOLD': self.SCENE_DETECTION_THRESHOLD,
+                'MIN_SCENE_DURATION': 2.0,
+                'MAX_SCENES': 100
+            },
+            # ...existing code...
+        }
+
 class VideoProcessor:
-    def __init__(self, settings: Settings):
-        self.settings = settings
-        self.scene_threshold = settings.SCENE_DETECTION_THRESHOLD
-        self.frame_sample_rate = settings.FRAME_SAMPLE_RATE
-        self.min_scene_duration = settings.MIN_SCENE_DURATION
-        self._initialize_whisper()
+    """Procesador principal de video para análisis y transcripción"""
+
+    def __init__(self, settings: Dict[str, Any]):
+        """
+        Inicializa el procesador de video
         
-    def _initialize_whisper(self):
-        """Inicializa el modelo de Whisper para transcripción"""
+        Args:
+            settings: Configuración del procesador
+            
+        Raises:
+            ValueError: Si la configuración es inválida
+        """
+        if not isinstance(settings, dict):
+            raise ValueError("Settings debe ser un diccionario")
+        
+        self.settings = settings
+        self._configure_processing_parameters()
+        self._initialize_whisper()
+        logger.info("VideoProcessor inicializado correctamente")
+
+    def _configure_processing_parameters(self) -> None:
+        """Configura parámetros de procesamiento"""
+        video_config = self.settings.get('video_config', {})
+        self.scene_threshold = video_config.get('SCENE_DETECTION_THRESHOLD', 0.3)
+        self.frame_sample_rate = video_config.get('FRAME_SAMPLE_RATE', 1)
+        self.min_scene_duration = video_config.get('MIN_SCENE_DURATION', 2.0)
+        self.output_dir = Path(self.settings.get('output_dir', 'output'))
+        self.output_dir.mkdir(exist_ok=True)
+
+    def _initialize_whisper(self) -> None:
+        """Inicializa el modelo Whisper"""
         try:
-            base_model = whisper.load_model("large-v3")
+            base_model = whisper.load_model("base")
             self.whisper_model = modify_model(base_model)
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
-            logger.info(f"Whisper modelo inicializado en {self.device}")
+            logger.info("Modelo Whisper inicializado correctamente")
         except Exception as e:
             logger.error(f"Error inicializando Whisper: {str(e)}")
-            raise
+            raise RuntimeError(f"No se pudo inicializar Whisper: {str(e)}")
+
+    async def process_video(self, video_path: Path) -> VideoMetadata:
+        """
+        Procesa un video completo
         
-    async def extract_metadata(self, video_path: Path) -> VideoMetadata:
-        """Extrae metadatos del video"""
-        try:
-            cap = cv2.VideoCapture(str(video_path))
-            if not cap.isOpened():
-                raise ValueError(f"No se pudo abrir el video: {video_path}")
-                
-            metadata = VideoMetadata(
-                id=str(video_path.stem),
-                title=video_path.stem,
-                duration=cap.get(cv2.CAP_PROP_FRAME_COUNT) / cap.get(cv2.CAP_PROP_FPS),
-                resolution=(
-                    int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                    int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                ),
-                fps=cap.get(cv2.CAP_PROP_FPS),
-                format=video_path.suffix,
-                created_at=video_path.stat().st_ctime,
-                file_size=video_path.stat().st_size,
-                bitrate=self._calculate_bitrate(cap),
-                audio_channels=int(cap.get(cv2.CAP_PROP_AUDIOCHANNELS)),
-                audio_sample_rate=int(cap.get(cv2.CAP_PROP_AUDIOSAMPLERATEMHZ))
-            )
-            cap.release()
-            return metadata
+        Args:
+            video_path: Ruta al archivo de video
             
+        Returns:
+            VideoMetadata: Metadata del video procesado
+        """
+        try:
+            validate_video_format(video_path)
+            metadata = await self._extract_metadata(video_path)
+            scenes = await self._detect_scenes(video_path)
+            transcription = await self._transcribe_audio(video_path)
+            
+            return VideoMetadata(
+                path=video_path,
+                duration=metadata['duration'],
+                fps=metadata['fps'],
+                resolution=metadata['resolution'],
+                scenes=scenes,
+                transcription=transcription
+            )
         except Exception as e:
-            logger.error(f"Error extracting metadata: {str(e)}")
-            raise
+            logger.error(f"Error procesando video: {str(e)}")
+            raise RuntimeError(f"Error en procesamiento: {str(e)}")
 
-    async def detect_scenes(self, video_path: Path) -> List[Scene]:
-        """Detecta cambios de escena en el video"""
+    async def _extract_metadata(self, video_path: Path) -> Dict[str, Any]:
+        """Extrae metadata básica del video"""
+        cap = cv2.VideoCapture(str(video_path))
+        if not cap.isOpened():
+            raise ValueError("No se puede abrir el archivo de video")
+        
+        return {
+            'duration': cap.get(cv2.CAP_PROP_FRAME_COUNT) / cap.get(cv2.CAP_PROP_FPS),
+            'fps': cap.get(cv2.CAP_PROP_FPS),
+            'resolution': (
+                int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+                int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            )
+        }
+
+    async def _detect_scenes(self, video_path: Path) -> List[Scene]:
+        """Detecta escenas en el video"""
         scenes = []
-        try:
-            cap = cv2.VideoCapture(str(video_path))
-            if not cap.isOpened():
-                raise ValueError(f"No se pudo abrir el video: {video_path}")
+        cap = cv2.VideoCapture(str(video_path))
+        
+        prev_frame = None
+        current_scene_start = 0
+        frame_count = 0
+        
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
                 
-            prev_frame = None
-            current_scene_start = 0
-            frame_count = 0
-            
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                    
-                if frame_count % self.frame_sample_rate == 0:
-                    if prev_frame is not None:
-                        diff = self._calculate_frame_difference(prev_frame, frame)
-                        if diff > self.scene_threshold:
-                            current_time = frame_count / cap.get(cv2.CAP_PROP_FPS)
-                            if current_time - current_scene_start >= self.min_scene_duration:
-                                scenes.append(Scene(
-                                    id=f"scene_{len(scenes)}",
-                                    video_id=video_path.stem,
-                                    start_time=current_scene_start,
-                                    end_time=current_time,
-                                    description="",  # Se llenará con AI
-                                    confidence=float(diff),
-                                    key_objects=[],
-                                    emotional_context="",
-                                    movement_type=self._detect_movement_type(frame),
-                                    lighting_condition=self._analyze_lighting(frame),
-                                    scene_type=self._determine_scene_type(frame)
-                                ))
-                                current_scene_start = current_time
-                    prev_frame = frame.copy()
-                frame_count += 1
+            if frame_count % self.frame_sample_rate == 0:
+                if prev_frame is not None:
+                    diff = self._calculate_frame_difference(prev_frame, frame)
+                    if diff > self.scene_threshold:
+                        timestamp = frame_count / cap.get(cv2.CAP_PROP_FPS)
+                        if timestamp - current_scene_start >= self.min_scene_duration:
+                            scenes.append(Scene(
+                                start_time=current_scene_start,
+                                end_time=timestamp
+                            ))
+                            current_scene_start = timestamp
                 
-            cap.release()
-            return scenes
+                prev_frame = frame.copy()
+            frame_count += 1
             
-        except Exception as e:
-            logger.error(f"Error detecting scenes: {str(e)}")
-            raise
+        cap.release()
+        return scenes
 
-    async def generate_transcript(self, video_path: Path) -> List[Transcript]:
-        """Genera transcripción usando Stable-Whisper"""
+    def _calculate_frame_difference(self, frame1: np.ndarray, frame2: np.ndarray) -> float:
+        """Calcula la diferencia entre dos frames"""
+        gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+        gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+        
+        diff = cv2.absdiff(gray1, gray2)
+        return np.mean(diff) / 255.0
+
+    async def _transcribe_audio(self, video_path: Path) -> str:
+        """Transcribe el audio del video"""
         try:
-            result = self.whisper_model.transcribe(
-                str(video_path),
-                language="es",
-                word_timestamps=True,
-                verbose=False
-            )
-            
-            transcripts = []
-            for segment in result.segments:
-                transcript = Transcript(
-                    id=f"trans_{len(transcripts)}",
-                    video_id=video_path.stem,
-                    text=segment.text,
-                    start_time=segment.start,
-                    end_time=segment.end,
-                    speaker=None,  # Se puede implementar diarización
-                    confidence=segment.confidence,
-                    language="es",
-                    emotions=None,
-                    is_filtered=False
-                )
-                transcripts.append(transcript)
-                
-            return transcripts
-            
+            result = self.whisper_model.transcribe(str(video_path))
+            return result.text
         except Exception as e:
-            logger.error(f"Error generando transcripción: {str(e)}")
-            raise
+            logger.error(f"Error en transcripción: {str(e)}")
+            return ""

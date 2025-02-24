@@ -1,4 +1,3 @@
-# src/config/ai_studio_config.py
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -8,11 +7,22 @@ from dataclasses import dataclass
 @dataclass
 class AIStudioConfig:
     """Configuración para AI Studio"""
-    MODEL_NAME: str = "text-bison@001"
-    TEMPERATURE: float = 0.7
-    MAX_OUTPUT_TOKENS: int = 1024
-    TOP_P: float = 0.8
-    TOP_K: int = 40
+    model_name: str = "text-bison@001"
+    region: str = "us-central1"
+    max_tokens: int = 1024
+    temperature: float = 0.7
+
+    @classmethod
+    def get_config(cls) -> Dict[str, Any]:
+        """Retorna la configuración de AI Studio"""
+        return {
+            "model_name": cls.model_name,
+            "region": cls.region,
+            "parameters": {
+                "max_tokens": cls.max_tokens,
+                "temperature": cls.temperature
+            }
+        }
 
 def initialize_ai_studio():
     """

@@ -7,12 +7,12 @@ import sys
 from pathlib import Path
 from typing import Dict, Any
 from vertexai.generative_models import GenerativeModel
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 from tests.mocks.youtube_mock import YouTubeAPIMock
 from app.config import Settings
 from app.pipeline.video_pipeline import VideoPipeline
 from app.services.ai import VertexAIService
-from app.services.video import VideoProcessor
+from app.models.schemas import VideoConfig
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -219,55 +219,126 @@ def pipeline(monkeypatch):
 
 @pytest.fixture
 def settings():
-    """Proporciona configuración global para los tests"""
-    test_settings = {
-        "VERTEX_LOCATION": "us-central1",
-        "SCENE_DETECTION_THRESHOLD": 30.0,
-        "FRAME_SAMPLE_RATE": 5,
-        "MIN_SCENE_DURATION": 2.0,
-        "DOWNLOAD_PATH": "./tests/data/downloads",
-        "OUTPUT_PATH": "./tests/data/output",
-        "UNE_STANDARDS_PATH": "./tests/data/standards"
-    }
-    return Settings(_env_file="tests/.env.test", **test_settings)
+    """Fixture para configuración global"""
+    return Settings()
 
 @pytest.fixture
 def video_pipeline(settings):
+    """Fixture para el pipeline de video"""
     return VideoPipeline(settings)
 
 @pytest.fixture
 def test_video_path():
-    return Path(__file__).parent / "resources" / "test_video.mp4"
+    """Fixture para path de video de prueba"""
+    return Path(__file__).parent / "fixtures" / "test_video.mp4"
+
+@pytest.fixture(scope="session")
+def video_duration():
+    """Duración conocida del video de prueba"""
+    return 180.0  # Ajusta este valor a la duración real de tu video
 
 @pytest.fixture
 def mock_vertex_ai():
-    """Proporciona un mock completo del servicio VertexAI"""
-    class MockVertexAI(MagicMock):
-        async def generate_description(self, text: str) -> str:
-            return "Mock description generated"
-            
-        async def analyze_frame(self, frame: np.ndarray) -> Dict[str, Any]:
-            return {
-                "description": "Mock frame analysis",
-                "confidence": 0.95,
-                "detected_objects": ["person", "laptop"]
-            }
-    
-    return MockVertexAI()
+    """Mock completo para Vertex AI"""
+    with patch('vertexai.init') as mock_init, \
+         patch('google.oauth2.service_account.Credentials.from_service_account_file') as mock_creds:
+        mock_creds.return_value = Mock(
+            project_id='test-project',
+            service_account_email='test@test.iam.gserviceaccount.com'
+        )
+        yield mock_init
 
 @pytest.fixture
-def une_validator():
-    """Proporciona validador de estándares UNE"""
-    class UNEValidator:
-        def validate_subtitle(self, text: str, duration: float) -> bool:
-            max_chars = 37
-            max_duration = 4.0
-            return len(text) <= max_chars and duration <= max_duration
-            
-        def validate_audio_description(self, text: str, gap_duration: float) -> bool:
-            max_words = 120
-            min_gap = 2.0
-            words = len(text.split())
-            return words <= max_words and gap_duration >= min_gap
+def mock_generative_model():
+    """Mock del modelo generativo"""
+    return Mock(spec=GenerativeModel)
+
+def pytest_sessionstart(session):
+    """Cargar variables de entorno de prueba"""
+    env_file = Path(__file__).parent / '.env.test'
+    load_dotenv(env_file)
+
+import json
+from unittest.mock import Mock, patch
+
+@pytest.fixture(autouse=True)
+def mock_env_vars(monkeypatch):
+    """Mock de variables de entorno"""
+    mock_creds = {
+        "type": "service_account",
+        "project_id": "test-project",
+        "private_key_id": "test-key-id",
+        "private_key": "test-private-key",
+        "client_email": "test@test.iam.gserviceaccount.com",
+        "client_id": "test-client-id",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/test"
+    }
     
-    return UNEValidator()
+    monkeypatch.setenv('GOOGLE_APPLICATION_CREDENTIALS', json.dumps(mock_creds))
+    monkeypatch.setenv('GOOGLE_CLOUD_PROJECT', 'test-project')
+    monkeypatch.setenv('VERTEX_LOCATION', 'us-central1')
+    monkeypatch.setenv('YOUTUBE_API_KEY', 'test-key')
+
+@pytest.fixture
+def mock_gemini_model():
+    """Mock de Gemini Model"""
+    mock_model = Mock()
+    mock_model.generate_content.return_value = Mock(
+        text="Descripción de prueba",
+        candidates=[Mock(likelihood=0.9)],
+        safety_ratings=[Mock(category="HARM", probability="LOW")]
+    )
+    return mock_model
+
+@pytest.fixture
+def mock_video_analyzer(mock_gemini_model):
+    """Mock de VideoAnalyzer"""
+    from app.core.video_analyzer import VideoAnalyzer
+    config = {
+        'batch_size': 32,
+        'max_retries': 3,
+        'temperature': 0.7,
+        'max_tokens': 1024
+    }
+    return VideoAnalyzer(config=config)
+
+@pytest.fixture(scope="session")
+def test_config():
+    return VideoConfig(
+        frame_rate=25,
+        min_scene_duration=2.0,
+        resolution=(1920, 1080)
+    )
+
+@pytest.fixture
+def test_config():
+    """Fixture para configuración de pruebas"""
+    return {
+        "batch_size": 32,
+        "max_retries": 3,
+        "max_concurrent_tasks": 3,
+        "max_memory_percent": 80,
+        "temperature": 0.7,
+        "max_tokens": 1024,
+        "language": "es",
+        "storage_bucket": "test-bucket",
+        "temp_storage_path": "./temp",
+        "output_storage_path": "./output/test",
+        "cache_dir": "./cache",
+        "max_video_duration": 3600,
+        "scene_detection_threshold": 0.3,
+        "min_scene_duration": 2.0
+    }
+
+@pytest.fixture
+def video_config(test_config):
+    """Fixture para VideoConfig"""
+    return VideoConfig(**test_config)
+
+@pytest.fixture
+def test_video_path():
+    """Fixture para ruta de video de prueba"""
+    return Path("tests/fixtures/test_video.mp4")

@@ -66,6 +66,8 @@ credentials/
 logs/
 temp/
 *.tmp
+logs/*
+!logs/.gitkeep
 
 # Environment variables
 .env

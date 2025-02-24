@@ -2,6 +2,13 @@ from typing import Dict, List, Optional, Any
 import numpy as np
 from vertexai.generative_models import GenerativeModel
 from dataclasses import dataclass
+import logging
+from pathlib import Path
+from pydub import AudioSegment
+import speech_recognition as sr
+from ..core.error_handler import ProcessingError
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class AudioConfig:
@@ -17,16 +24,19 @@ class AudioProcessor:
     Handles audio processing and silence detection for audio descriptions.
     Implements UNE153020 standards for audio accessibility.
     """
-    def __init__(self, model: Optional[GenerativeModel] = None, config: Optional[AudioConfig] = None):
+    def __init__(self, config: Dict[str, Any]):
         """
         Initialize the audio processor with AI Studio integration.
         
         Args:
-            model: Google AI Studio model for audio analysis
             config: Audio processing configuration
         """
-        self.model = model
-        self.config = config or AudioConfig()
+        self.config = config
+        self.recognizer = sr.Recognizer()
+        self.min_silence_len = config.get('min_silence_len', 1000)
+        self.silence_thresh = config.get('silence_thresh', -40)
+        self.temp_dir = Path(config.get('temp_dir', 'temp'))
+        self.temp_dir.mkdir(exist_ok=True)
         self._initialize_processor()
     
     def _initialize_processor(self) -> None:
@@ -41,43 +51,77 @@ class AudioProcessor:
                 return type('Response', (), {'text': 'Mock audio analysis'})()
         return MockModel()
     
-    def find_silences(self, audio_data: np.ndarray) -> List[Dict[str, float]]:
-        """
-        Detects periods of silence suitable for audio descriptions.
-        Implements UNE153020 requirements for silence detection.
-        
-        Args:
-            audio_data: Numpy array of audio samples
-            
-        Returns:
-            List of silence periods with start and end times
-        """
-        return [
-            {"start": 1.0, "end": 3.5},
-            {"start": 4.0, "end": 6.0}
-        ]
-
-    def assess_quality(self, audio_data: np.ndarray) -> Dict[str, Any]:
-        """
-        Assesses audio quality for accessibility requirements.
-        
-        Args:
-            audio_data: Numpy array of audio samples
-            
-        Returns:
-            Quality metrics including signal-to-noise ratio
-        """
-        return {
-            "signal_to_noise": 25.5,
-            "clarity_score": 0.85,
-            "background_noise_level": -45.0,
-            "issues": []
-        }
-    
-    def _calculate_clarity(self, audio_data: np.ndarray) -> float:
-        """Calculate audio clarity score."""
+    async def extract_audio(self, video_path: Path) -> Path:
+        """Extrae el audio del video"""
         try:
-            # Implement clarity calculation logic
-            return 0.95  # Placeholder
+            audio_path = self.temp_dir / f"{video_path.stem}_audio.wav"
+            audio = AudioSegment.from_file(str(video_path))
+            audio.export(str(audio_path), format="wav")
+            return audio_path
         except Exception as e:
-            raise RuntimeError(f"Error calculating clarity: {str(e)}")
+            logger.error(f"Error extrayendo audio: {e}")
+            raise ProcessingError("AUDIO_EXTRACTION_ERROR", str(e))
+
+    async def detect_silence(self, audio_path: Path) -> List[Dict[str, float]]:
+        """Detecta períodos de silencio en el audio"""
+        try:
+            audio = AudioSegment.from_wav(str(audio_path))
+            silence_ranges = []
+            
+            # Detectar silencios usando pydub
+            segments = audio.detect_silence(
+                min_silence_len=self.min_silence_len,
+                silence_thresh=self.silence_thresh
+            )
+            
+            for start, end in segments:
+                silence_ranges.append({
+                    'start': start / 1000.0,  # Convertir a segundos
+                    'end': end / 1000.0,
+                    'duration': (end - start) / 1000.0
+                })
+            
+            return silence_ranges
+        except Exception as e:
+            logger.error(f"Error detectando silencios: {e}")
+            raise ProcessingError("SILENCE_DETECTION_ERROR", str(e))
+
+    async def transcribe_audio(self, audio_path: Path) -> str:
+        """Transcribe el audio a texto"""
+        try:
+            with sr.AudioFile(str(audio_path)) as source:
+                audio = self.recognizer.record(source)
+                text = self.recognizer.recognize_google(audio, language='es-ES')
+                return text
+        except Exception as e:
+            logger.error(f"Error en transcripción: {e}")
+            raise ProcessingError("TRANSCRIPTION_ERROR", str(e))
+
+    async def analyze_audio_segments(self, audio_path: Path) -> List[Dict[str, Any]]:
+        """Analiza segmentos de audio para audiodescripción"""
+        try:
+            audio = AudioSegment.from_wav(str(audio_path))
+            silence_ranges = await self.detect_silence(audio_path)
+            segments = []
+            
+            for i, silence in enumerate(silence_ranges[:-1]):
+                segment = {
+                    'start': silence['end'],
+                    'end': silence_ranges[i + 1]['start'],
+                    'duration': silence_ranges[i + 1]['start'] - silence['end'],
+                    'has_speech': True
+                }
+                segments.append(segment)
+            
+            return segments
+        except Exception as e:
+            logger.error(f"Error analizando segmentos: {e}")
+            raise ProcessingError("SEGMENT_ANALYSIS_ERROR", str(e))
+
+    def cleanup(self):
+        """Limpia archivos temporales"""
+        try:
+            for file in self.temp_dir.glob("*"):
+                file.unlink()
+        except Exception as e:
+            logger.warning(f"Error limpiando archivos temporales: {e}")

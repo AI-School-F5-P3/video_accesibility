@@ -1,5 +1,6 @@
 from typing import List, Dict, Tuple, Optional
-from src.config import UNE153010Config
+from app.config.une_config import UNE153010Config  # Corrección aquí
+from app.models.schemas import SubtitleConfig
 
 class TextProcessor:
     """
@@ -12,12 +13,13 @@ class TextProcessor:
     - Ensuring reading speed compliance
     - Managing text timing
     """
-    def __init__(self):
+    def __init__(self, config: Optional[SubtitleConfig] = None):
         """
         Initialize the text processor with UNE standard requirements.
         These values come directly from UNE153010 and UNE153020.
         """
-        self.config = UNE153010Config()
+        self.config = config or SubtitleConfig()
+        self.une_config = UNE153010Config()
         self.max_chars_per_line = 37
         self.max_lines = 2
         self.chars_per_second = 15  # Añadido
