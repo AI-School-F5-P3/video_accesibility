@@ -118,13 +118,14 @@ class AccessibilityPipeline:
             scenes = self.video_analyzer.detect_scenes(video_path)
             
             # Generar subtítulos
+            # Corregido: Ahora desempaquetamos correctamente
             srt_path, subtitles_data = self._generate_subtitles(video_path)
             
             # Generar audiodescripción
-            audio_desc_path, audio_desc_script, descriptions_data = self._generate_audio_description(video_path, scenes)
+            audio_desc_path, audio_desc_script = self._generate_audio_description(video_path, scenes)
             
             # Generar guion completo
-            full_script_path = self._generate_full_script(video_path, subtitles_data, descriptions_data)
+            full_script_path = self._generate_full_script(video_path, subtitles_data, self.descriptions_data)
             
             # Generar video final con audiodescripción y subtítulos
             final_video = self._merge_audio_description(video_path, audio_desc_path, srt_path)
@@ -167,12 +168,12 @@ class AccessibilityPipeline:
         )
         return float(result.stdout)
 
-    def _generate_subtitles(self, video_path: str) -> str:
+    def _generate_subtitles(self, video_path: str) -> tuple[str, List[Dict]]:
         """
         Genera subtítulos según UNE 153010 y los guarda en un archivo .srt.
         
         Returns:
-            Ruta al archivo .srt generado.
+            Tuple con la ruta al archivo .srt generado y los datos de subtítulos procesados.
         """
         logger.info("Generando subtítulos...")
         
@@ -182,6 +183,7 @@ class AccessibilityPipeline:
         # Procesar transcripción para formato SRT
         segments = result["segments"]
         srt_content = []
+        subtitles_data = []
         
         for i, segment in enumerate(segments, 1):
             # Formatear tiempos
@@ -198,15 +200,26 @@ class AccessibilityPipeline:
                     subtitle['text'],
                     ""
                 ])
+                
+                # Guardar datos para uso posterior
+                subtitles_data.append({
+                    'index': i,
+                    'start': segment['start'],
+                    'end': segment['end'],
+                    'text': subtitle['text']
+                })
+        
+        # Asegurar que el directorio exista antes de escribir el archivo
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # Guardar archivo SRT
         srt_path = self.output_dir / "subtitles.srt"
         with open(srt_path, 'w', encoding='utf-8') as f:
             f.write('\n'.join(srt_content))
             
-        return str(srt_path)
+        return str(srt_path), subtitles_data
 
-    def _generate_audio_description(self, video_path: str) -> tuple[str, str]:
+    def _generate_audio_description(self, video_path: str, scenes=None) -> tuple[str, str]:
         """
         Genera audiodescripción según UNE 153020.
         
@@ -216,7 +229,8 @@ class AccessibilityPipeline:
         logger.info("Generando audiodescripción...")
         
         # Detectar escenas y silencios
-        scenes = self.video_analyzer.detect_scenes(video_path)
+        if scenes is None:
+            scenes = self.video_analyzer.detect_scenes(video_path)
         silences = self.video_analyzer.detect_silence(video_path)
         
         # Generar descripciones de escenas
@@ -277,6 +291,9 @@ class AccessibilityPipeline:
         
         # Combinar segmentos de audio
         final_audio = self._combine_audio_segments(audio_segments)
+
+        # Almacenar descripciones para uso posterior
+        self.descriptions_data = descriptions
         
         return str(final_audio), str(script_path)
 
@@ -299,6 +316,7 @@ class AccessibilityPipeline:
         combined.export(output_path, format="mp3")
         
         return str(output_path)
+
     def _generate_full_script(self, video_path, subtitles, audio_descriptions):
         """
         Genera un guion completo del video combinando transcripciones y descripciones.
@@ -364,6 +382,9 @@ class AccessibilityPipeline:
         
         output_path = self.output_dir / "video_with_accessibility.mp4"
         
+        # Nos aseguramos de que el directorio de salida exista
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
         # Mezclar audio original con audiodescripción
         temp_audio_path = self.temp_dir / "mixed_audio.aac"
         subprocess.run([
@@ -377,12 +398,18 @@ class AccessibilityPipeline:
             str(temp_audio_path)
         ], check=True)
         
+        # Convertir la ruta a absoluta para evitar problemas con las rutas relativas
+        abs_srt_path = os.path.abspath(srt_path)
+        
+        # Escapar la ruta para evitar problemas con caracteres especiales
+        escaped_srt_path = abs_srt_path.replace('\\', '\\\\').replace(':', '\\:')
+        
         # Añadir subtítulos al video final
         subprocess.run([
             'ffmpeg', '-y',
             '-i', video_path,
             '-i', str(temp_audio_path),
-            '-vf', f"subtitles={srt_path}:force_style='FontName=Arial,FontSize=24,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=3,Outline=1,Shadow=1,MarginV=20'",
+            '-vf', f"subtitles={escaped_srt_path}:force_style='FontName=Arial,FontSize=24,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=3,Outline=1,Shadow=1,MarginV=20'",
             '-map', '0:v',
             '-map', '1:a',
             '-c:v', 'libx264',
@@ -391,19 +418,20 @@ class AccessibilityPipeline:
         ], check=True)
         
         return str(output_path)
-
     def _prepare_output_files(self, 
                             video_path: str,
                             srt_path: str,
                             audio_desc_path: str,
-                            script_path: str,
+                            audio_desc_script: str,
+                            full_script_path: str,
                             final_video_path: str) -> Dict[str, str]:
         """Prepara y organiza archivos finales."""
         # Copiar archivos a directorio final
         final_paths = {
             'subtitles': srt_path,
             'audio_description': audio_desc_path,
-            'audio_description_script': script_path,
+            'audio_description_script': audio_desc_script,
+            'full_script': full_script_path,
             'video_with_audio_description': final_video_path
         }
         

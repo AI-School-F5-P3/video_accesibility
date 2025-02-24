@@ -21,6 +21,12 @@ from pydub.silence import detect_silence
 
 load_dotenv()
 
+
+from video_processor import move_files_and_process_ffmpeg
+# Llamar a la función para mover archivos y procesar video
+move_files_and_process_ffmpeg()
+
+
 model = whisper.load_model("base")
 ffmpeg_path = os.getenv("FFMPEG_PATH", "ffmpeg")
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
@@ -68,13 +74,14 @@ class VideoAnalyzer:
         self.min_silence_duration = 1.0  # segundos
         self.scene_threshold = 30.0  # umbral para detectar cambios de escena
         self.min_scene_duration = 2.0  # duración mínima de una escena
-
+        self.current_video_path = None
 
     def detect_scenes(self, video_path: str) -> List[Dict[str, Any]]:
         """
         Detecta escenas en el video usando análisis de diferencia entre frames.
         """
         try:
+            self.current_video_path = video_path
             cap = cv2.VideoCapture(video_path)
             if not cap.isOpened():
                 raise ValueError("No se pudo abrir el video")
@@ -130,7 +137,10 @@ class VideoAnalyzer:
         except Exception as e:
             logger.error(f"Error en detección de escenas: {str(e)}")
             return []
-        
+    
+    
+
+
     def detect_silence(self, video_path: str) -> List[Dict[str, float]]:
         """
         Detecta silencios en el video usando análisis de audio mejorado.
@@ -180,7 +190,47 @@ class VideoAnalyzer:
         except Exception as e:
             logger.error(f"Error en detección de silencios: {str(e)}")
             return []
-
+    def _extract_key_frame(self, start_time: float, end_time: float) -> str:
+        """
+        Extrae un fotograma clave representativo de una escena para su análisis.
+        
+        Args:
+            start_time (float): Tiempo de inicio de la escena en segundos
+            end_time (float): Tiempo de fin de la escena en segundos
+            
+        Returns:
+            str: Ruta al fotograma extraído
+        """
+        try:
+            # Calcular tiempo para extraer el frame (a 1/3 de la escena)
+            frame_time = start_time + (end_time - start_time) / 3
+            
+            # Crear directorio temporal si no existe
+            temp_dir = Path(tempfile.gettempdir()) / "video_frames"
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Generar nombre de archivo único
+            frame_path = str(temp_dir / f"frame_{frame_time:.2f}.jpg")
+            
+            # Extraer frame usando ffmpeg
+            extract_cmd = [
+                'ffmpeg', '-y',
+                '-ss', str(frame_time),
+                '-i', self.current_video_path if hasattr(self, 'current_video_path') else "input_video",
+                '-vframes', '1',
+                '-q:v', '2',
+                frame_path
+            ]
+            
+            # Execute command
+            subprocess.run(extract_cmd, capture_output=True, check=True)
+            
+            return frame_path
+        
+        except Exception as e:
+            logger.error(f"Error extrayendo fotograma clave: {str(e)}")
+            return ""
+    
     def describe_scene(self, start_time, end_time, scene_info):
         """
         Genera una descripción detallada de una escena específica.
@@ -195,16 +245,20 @@ class VideoAnalyzer:
         """
         # Extraer fotogramas clave para análisis
         frame_path = self._extract_key_frame(scene_info['start_time'], scene_info['end_time'])
-            
-            # Generar prompt detallado para mejorar la descripción
+        
+        # Añadir información del frame extraído al prompt
+        frame_info = f"Frame extraído: {frame_path}" if frame_path else "No se pudo extraer frame"
+        
+        # Generar prompt detallado para mejorar la descripción
         prompt = f"""
-         Actúa como un experto en audiodescripción según la norma UNE 153020.
-    
+        Actúa como un experto en audiodescripción según la norma UNE 153020.
+
         Genera una descripción detallada de lo que sucede en esta escena basada en la siguiente información:
         - Tiempo: {start_time:.2f}s a {end_time:.2f}s
         - Elementos visuales: {scene_info.get('visual_elements', [])}
         - Tipo de escena: {scene_info.get('scene_type', 'no especificado')}
         - Personajes detectados: {scene_info.get('characters', [])}
+        - {frame_info}
         
         Tu descripción debe:
         1. Describir acciones de personajes
@@ -217,7 +271,7 @@ class VideoAnalyzer:
         
         response = self.model.generate_content(prompt)
         description = response.text.strip()
-        
+    
         return description
     
     def _is_dialogue_gap(self, audio: AudioSegment, start_ms: int, end_ms: int) -> bool:
