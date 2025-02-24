@@ -1,0 +1,198 @@
+/* Variables */
+:root {
+    /* Colores principales */
+    --primary: rgb(5, 81, 100);     /* Color original */
+    --secondary: rgb(6, 122, 151);   /* Color original */
+    --hover: rgb(4, 65, 80);        /* Color original */
+    
+    /* Estados del stepper */
+    --stepper-active: #2E7D32;      /* Verde más visible para la barra */
+    --stepper-done: #1B5E20;        /* Verde completado con buen contraste */
+    
+    /* Escala de grises accesible */
+    --white: #FFFFFF;
+    --gray-100: #F5F5F5;
+    --gray-200: #E0E0E0;
+    --gray-400: #9E9E9E;
+    --gray-600: #424242;
+    --gray-800: #212121;
+    
+    /* Focus outline */
+    --focus-ring: 0 0 0 3px rgba(11, 83, 148, 0.5);
+  }
+  
+  /* Base styles */
+  body {
+    background-color: var(--primary);
+    color: var(--white);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  
+  /* Typography */
+  .display-4 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  
+  /* Buttons */
+  .btn-custom {
+    background-color: var(--secondary);
+    color: var(--white);
+    border: 2px solid transparent;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  
+  .btn-custom:hover {
+    background-color: var(--hover);
+    color: var(--white);
+  }
+  
+  .btn-custom:focus {
+    box-shadow: var(--focus-ring);
+    outline: none;
+  }
+  
+  /* Forms */
+  .form-control:focus {
+    box-shadow: var(--focus-ring);
+    border-color: var(--secondary);
+  }
+  
+  /* Stepper */
+  .stepper-wrapper {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    position: relative;
+  }
+  
+  .stepper-wrapper::before {
+    content: '';
+    position: absolute;
+    height: 2px;
+    width: 100%;
+    background-color: var(--gray-400);
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  .stepper-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    z-index: 1;
+  }
+  
+  .step-counter {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--white);
+    border: 2px solid var(--gray-400);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--gray-600);
+  }
+  
+  .step-name {
+    color: var(--gray-200);
+    font-size: 1rem;
+    font-weight: 500;
+  }
+  
+  /* Stepper states */
+  .stepper-item.active .step-counter {
+    background-color: var(--stepper-active);
+    border-color: var(--stepper-active);
+    color: var(--white);
+  }
+  
+  .stepper-item.active .step-name {
+    color: var(--white);
+    font-weight: 600;
+  }
+  
+  .stepper-item.completed .step-counter {
+    background-color: var(--stepper-done);
+    border-color: var(--stepper-done);
+    color: var(--white);
+  }
+  
+  /* Cards */
+  .card {
+    height: 100%;
+    background-color: var(--gray-800);
+    border: none;
+    border-radius: 8px;
+  }
+  
+  .card-body {
+    color: var(--white);
+  }
+  
+  /* Upload area */
+  .upload-area {
+    min-height: 200px;
+    background-color: var(--gray-800);
+    border: 2px dashed var(--gray-400);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .upload-area:hover,
+  .upload-area.dragging {
+    background-color: var(--gray-600);
+    border-color: var(--secondary);
+  }
+  
+  .upload-area label {
+    cursor: pointer;
+  }
+  
+  /* Focus styles for accessibility */
+  a:focus,
+  button:focus,
+  input:focus,
+  select:focus {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+  
+  /* Skip link for keyboard navigation */
+  .skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--secondary);
+    color: var(--white);
+    padding: 8px;
+    z-index: 100;
+    transition: top 0.3s ease;
+  }
+  
+  .skip-link:focus {
+    top: 0;
+  }
+  
+  /* High contrast focus indicators */
+  *:focus-visible {
+    outline: 3px solid var(--white);
+    outline-offset: 2px;
+  }
