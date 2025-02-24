@@ -8,3 +8,4 @@ ffmpeg.exe
 ffplay.exe
 ffprobe.exe
 data/
+env/

@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 import subprocess
 from pydub import AudioSegment
+from ..models.transcript import Transcript
 
 
 class SpeechProcessor:
@@ -107,3 +108,125 @@ class SpeechProcessor:
                     os.unlink(temp_wav_path)
                 except Exception as e:
                     logging.warning(f"Could not delete temporary file {temp_wav_path}: {str(e)}")
+
+    async def transcribe_video(self, video_path: Path) -> Transcript:
+        """Transcribe video audio to text using Whisper"""
+        temp_wav_path = None
+        try:
+            # Create temporary WAV file
+            temp_wav_fd, temp_wav_path = tempfile.mkstemp(suffix='.wav')
+            os.close(temp_wav_fd)
+            
+            # Extract audio to WAV
+            extract_command = [
+                'ffmpeg',
+                '-i', str(video_path),
+                '-ac', '1',
+                '-ar', '16000',
+                '-y',
+                temp_wav_path
+            ]
+            
+            subprocess.run(extract_command, check=True, capture_output=True)
+            
+            # Transcribe with Whisper
+            result = self.whisper_model.transcribe(
+                temp_wav_path,
+                language=self.settings.LANGUAGE_CODE[:2],  # Use first 2 chars (e.g., 'es' from 'es-ES')
+                word_timestamps=True,
+                condition_on_previous_text=True,
+                temperature=0.2
+            )
+            
+            # Create Transcript object
+            transcript = Transcript()
+            
+            # Process segments
+            for segment in result["segments"]:
+                start_ms = int(segment["start"] * 1000)
+                end_ms = int(segment["end"] * 1000)
+                text = segment["text"].strip()
+                
+                if text:  # Only add non-empty segments
+                    transcript.add_segment(start_ms, end_ms, text)
+            
+            return transcript
+            
+        except Exception as e:
+            logging.error(f"Error transcribing video: {str(e)}")
+            raise
+            
+        finally:
+            if temp_wav_path and os.path.exists(temp_wav_path):
+                try:
+                    os.unlink(temp_wav_path)
+                except Exception as e:
+                    logging.warning(f"Could not delete temporary file {temp_wav_path}: {str(e)}")
+
+    async def get_word_timestamps(self, video_path: Path) -> list[dict]:
+        """Get precise word-level timestamps"""
+        temp_wav_path = None
+        try:
+            # Create temporary WAV file
+            temp_wav_fd, temp_wav_path = tempfile.mkstemp(suffix='.wav')
+            os.close(temp_wav_fd)
+            
+            # Extract audio to WAV
+            extract_command = [
+                'ffmpeg',
+                '-i', str(video_path),
+                '-ac', '1',
+                '-ar', '16000',
+                '-y',
+                temp_wav_path
+            ]
+            
+            subprocess.run(extract_command, check=True, capture_output=True)
+            
+            # Transcribe with word timestamps
+            result = self.whisper_model.transcribe(
+                temp_wav_path,
+                language=self.settings.LANGUAGE_CODE[:2],
+                word_timestamps=True
+            )
+            
+            # Extract word timestamps
+            word_times = []
+            for segment in result["segments"]:
+                for word in segment.get("words", []):
+                    word_times.append({
+                        "word": word["word"],
+                        "start": int(word["start"] * 1000),
+                        "end": int(word["end"] * 1000),
+                        "probability": word.get("probability", 0)
+                    })
+            
+            return word_times
+            
+        except Exception as e:
+            logging.error(f"Error getting word timestamps: {str(e)}")
+            raise
+            
+        finally:
+            if temp_wav_path and os.path.exists(temp_wav_path):
+                try:
+                    os.unlink(temp_wav_path)
+                except Exception as e:
+                    logging.warning(f"Could not delete temporary file {temp_wav_path}: {str(e)}")
+
+    def _extract_audio(self, video_path: Path) -> Path:
+        """Extract audio from video to temporary WAV file"""
+        temp_wav_fd, temp_wav_path = tempfile.mkstemp(suffix='.wav')
+        os.close(temp_wav_fd)
+        
+        extract_command = [
+            'ffmpeg',
+            '-i', str(video_path),
+            '-ac', '1',
+            '-ar', '16000',
+            '-y',
+            temp_wav_path
+        ]
+        
+        subprocess.run(extract_command, check=True, capture_output=True)
+        return Path(temp_wav_path)
