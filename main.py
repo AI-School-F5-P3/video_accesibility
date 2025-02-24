@@ -1,33 +1,48 @@
-from flask import Flask, render_template, request, jsonify
-from src.services.video_service import VideoService
-from src.config.setup import Settings
-import logging
-from pathlib import Path
-from dotenv import load_dotenv
+
 import os
+import sys
 
-load_dotenv() 
+# Asegurarnos que la carpeta raíz está en el path de Python
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-app = Flask(__name__)
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+# Ajustar el import al archivo correcto
+from src.config.setup import Settings
+from api.endpoints import video, subtitle, audiodesc
+
 settings = Settings()
-video_service = VideoService(settings)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+app = FastAPI(
+    title="MIRESSE - Accesibilidad",
+    description="API para generar audiodescripciones y subtítulos para videos",
+    version="1.0.0"
+)
 
-@app.route('/process', methods=['POST'])
-def process_video():
-    try:
-        youtube_url = request.form.get('youtube_url')
-        if not youtube_url:
-            return jsonify({'error': 'No URL provided'}), 400
+# Configuración CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-        result = video_service.process_youtube_video(youtube_url)
-        return jsonify(result)
-    except Exception as e:
-        logging.error(f"Error processing video: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+# Montar archivos estáticos
+app.mount("/static", StaticFiles(directory="front"), name="static")
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# Incluir routers
+app.include_router(video.router, prefix="/api/v1/videos", tags=["videos"])
+app.include_router(subtitle.router, prefix="/api/v1/subtitles", tags=["subtitles"])
+app.include_router(audiodesc.router, prefix="/api/v1/audiodesc", tags=["audiodescriptions"])
+
+@app.get("/")
+async def root():
+    return {"message": "MIRESSE API funcionando correctamente. Visita /docs para ver la documentación."}
+
+# Punto de entrada para ejecución directa
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

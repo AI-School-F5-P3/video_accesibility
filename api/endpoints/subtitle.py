@@ -1,64 +1,95 @@
-from fastapi import APIRouter, HTTPException
-from typing import List
+from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi.responses import FileResponse
+from typing import Optional
 from src.services.subtitle_service import SubtitleService
-from src.core.speech_processor import SpeechProcessor
-from src.utils.formatters import format_subtitle_response
+from src.config.setup import Settings
+from pathlib import Path
 
 router = APIRouter()
-subtitle_service = SubtitleService()
-speech_processor = SpeechProcessor()
+settings = Settings()
+subtitle_service = SubtitleService(settings)
 
-@router.post("/{video_id}/generate")
-async def generate_subtitles(video_id: str):
-    """Generate subtitles for a video"""
+@router.get("/{video_id}")
+async def get_subtitles(
+    video_id: str,
+    format: str = "srt",
+    download: bool = False
+):
+    """Get subtitles for a video"""
     try:
-        # Process speech to text
-        transcript = await speech_processor.transcribe_video(video_id)
+        subtitle_data = await subtitle_service.get_subtitles(video_id, format)
         
-        # Generate and save subtitles
-        subtitle_id = await subtitle_service.create_subtitles(
+        if download:
+            subtitle_path = Path(subtitle_data["path"])
+            if not subtitle_path.exists():
+                raise HTTPException(
+                    status_code=404,
+                    detail="Archivo de subtítulos no encontrado"
+                )
+            
+            return FileResponse(
+                subtitle_path,
+                media_type="application/x-subrip",
+                filename=f"{video_id}_subtitles.{format}"
+            )
+            
+        return subtitle_data
+        
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.put("/{video_id}/segments/{segment_id}")
+async def update_subtitle_segment(
+    video_id: str,
+    segment_id: str,
+    text: str
+):
+    """Update a specific subtitle segment"""
+    try:
+        updated = await subtitle_service.update_subtitle(
+            video_id,
+            segment_id,
+            {"text": text}
+        )
+        return updated
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.get("/{video_id}/preview")
+async def preview_subtitles(video_id: str, format: str = "srt"):
+    """Get subtitle preview (first few segments)"""
+    try:
+        subtitle_data = await subtitle_service.get_subtitles(video_id, format)
+        
+        # Get first 5 segments
+        preview_data = {
+            "video_id": video_id,
+            "format": format,
+            "segments": subtitle_data["segments"][:5]
+        }
+        
+        return preview_data
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.post("/{video_id}/realign")
+async def realign_subtitles(
+    video_id: str,
+    offset_ms: int,
+    background_tasks: BackgroundTasks
+):
+    """Realign subtitles by adding/subtracting milliseconds"""
+    try:
+        background_tasks.add_task(
+            subtitle_service.realign_subtitles,
             video_id=video_id,
-            transcript=transcript
+            offset_ms=offset_ms
         )
         
         return {
-            "subtitle_id": subtitle_id,
-            "message": "Subtitles generated successfully"
+            "message": "Realineación de subtítulos iniciada",
+            "video_id": video_id,
+            "offset_ms": offset_ms
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/{video_id}")
-async def get_subtitles(video_id: str, format: str = "srt"):
-    """Get subtitles for a video in specified format"""
-    try:
-        subtitles = await subtitle_service.get_subtitles(video_id)
-        
-        if format == "srt":
-            return format_subtitle_response(subtitles, "srt")
-        elif format == "json":
-            return format_subtitle_response(subtitles, "json")
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail="Unsupported format. Use 'srt' or 'json'"
-            )
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-@router.put("/{video_id}/subtitles/{subtitle_id}")
-async def update_subtitle(
-    video_id: str,
-    subtitle_id: str,
-    subtitle_data: dict
-):
-    """Update a specific subtitle"""
-    try:
-        updated_subtitle = await subtitle_service.update_subtitle(
-            video_id,
-            subtitle_id,
-            subtitle_data
-        )
-        return updated_subtitle
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))

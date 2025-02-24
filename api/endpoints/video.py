@@ -1,62 +1,117 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
-from typing import List
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
+from typing import Optional
 from src.services.video_service import VideoService
-from src.core.video_analyzer import VideoAnalyzer
-from src.models.scene import Scene
+from src.config.setup import Settings
 from src.utils.validators import validate_video_file
-from src.utils.formatters import format_video_response
 
 router = APIRouter()
-video_service = VideoService()
-video_analyzer = VideoAnalyzer()
+settings = Settings()
+video_service = VideoService(settings)
 
-@router.post("/upload/")
-async def upload_video(
-    file: UploadFile = File(...),
+@router.post("/process")
+async def process_video(
+    video: Optional[UploadFile] = File(None),
+    youtube_url: Optional[str] = Form(None),
+    generate_audiodesc: bool = Form(False),
+    generate_subtitles: bool = Form(False),
+    voice_type: str = Form("es-ES-F"),
+    subtitle_format: str = Form("srt"),
+    output_quality: str = Form("high"),
+    target_language: str = Form("es"),
     background_tasks: BackgroundTasks = None
 ):
-    """Upload a video file for processing"""
+    """Process video with specified options"""
     try:
-        # Validate video file
-        if not validate_video_file(file):
-            raise HTTPException(status_code=400, detail="Invalid video file")
+        if not video and not youtube_url:
+            raise HTTPException(
+                status_code=400,
+                detail="Debe proporcionar un archivo de video o una URL de YouTube"
+            )
 
-        # Process video
-        video_id = await video_service.save_video(file)
-        
-        # Add background task for video analysis
+        # Initialize processing options
+        options = {
+            "audioDesc": generate_audiodesc,
+            "subtitles": generate_subtitles,
+            "voice_type": voice_type,
+            "subtitle_format": subtitle_format,
+            "quality": output_quality,
+            "language": target_language
+        }
+
+        # Handle video upload
+        if video:
+            if not validate_video_file(video):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Formato de video no válido"
+                )
+            video_id = await video_service.save_video(video)
+        else:
+            # Handle YouTube URL
+            video_id = await video_service.process_youtube_url(youtube_url)
+
+        # Add processing task to background
         background_tasks.add_task(
-            video_analyzer.analyze_video,
-            video_id=video_id
+            video_service.analyze_video,
+            video_id=video_id,
+            options=options
         )
 
-        return {"video_id": video_id, "message": "Video uploaded successfully"}
+        return {
+            "video_id": video_id,
+            "message": "Procesamiento iniciado correctamente"
+        }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{video_id}/scenes")
-async def get_video_scenes(video_id: str) -> List[Scene]:
-    """Get analyzed scenes from a video"""
+@router.get("/{video_id}/status")
+async def get_processing_status(video_id: str):
+    """Get video processing status"""
     try:
-        scenes = await video_service.get_scenes(video_id)
-        return format_video_response(scenes)
+        status = await video_service.get_status(video_id)
+        return status
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@router.get("/{video_id}/status")
-async def get_processing_status(video_id: str):
-    """Get the processing status of a video"""
+@router.get("/{video_id}/result")
+async def get_processing_result(video_id: str):
+    """Get video processing results"""
     try:
         status = await video_service.get_status(video_id)
-        return {"status": status}
+        
+        if status["status"] != "completed":
+            return {
+                "status": status["status"],
+                "message": "Procesamiento en curso o con errores"
+            }
+            
+        result = {
+            "status": "completed",
+            "video_id": video_id,
+            "outputs": {}
+        }
+        
+        # Get subtitle path if generated
+        subtitle_path = await video_service.get_subtitle_path(video_id)
+        if subtitle_path:
+            result["outputs"]["subtitles"] = str(subtitle_path)
+            
+        # Get audio description path if generated
+        audiodesc_path = await video_service.get_audiodesc_path(video_id)
+        if audiodesc_path:
+            result["outputs"]["audio_description"] = str(audiodesc_path)
+            
+        return result
+        
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 @router.delete("/{video_id}")
 async def delete_video(video_id: str):
-    """Delete a video and its associated data"""
+    """Delete video and all associated files"""
     try:
         await video_service.delete_video(video_id)
-        return {"message": "Video deleted successfully"}
+        return {"message": "Video y archivos asociados eliminados correctamente"}
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))

@@ -9,3 +9,11 @@ ffplay.exe
 ffprobe.exe
 data/
 env/
+
+.mp3
+.mp4
+.wav
+.wma
+.flac
+.aac
+.avi
