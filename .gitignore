@@ -166,3 +166,12 @@ logs/
 
 # Otros
 .DS_Store
+
+# Credentials and environment
+.env
+credentials/*.json
+!credentials/.gitkeep
+
+# Credenciales
+credentials/oauth/*
+.env

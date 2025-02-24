@@ -1,30 +1,28 @@
 import asyncio
 import logging
-from app.pipeline.video_pipeline import VideoPipeline
 from app.config.settings import Settings
+from app.pipeline.video_pipeline import VideoPipeline
+from app.core.error_handler import ProcessingError
 from app.models.schemas import ServiceType
 
-# Configurar logging detallado
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configurar logging
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 async def main():
     try:
-        # Inicializar configuración
+        # Cargar configuración
         settings = Settings()
         config = settings.get_config()
         logger.debug(f"Configuración cargada: {config}")
-
+        
+        # Inicializar pipeline
+        pipeline = VideoPipeline(config)
+        
         # Verificar que la configuración no esté vacía
         if not config:
             raise ValueError("La configuración está vacía")
 
-        # Inicializar pipeline con configuración por defecto
-        pipeline = VideoPipeline(config)
-        
         # Solicitar URL y tipo de servicio
         print("\n=== Video Accessibility Service ===")
         youtube_url = input("\nIngresa la URL del video de YouTube: ")
@@ -42,9 +40,15 @@ async def main():
         # Procesar video
         result = await pipeline.process_url(youtube_url, service_type)
         
-    except Exception as e:
+    except ProcessingError as e:
         logger.error(f"Error en el procesamiento: {str(e)}")
-        print(f"\nError: {str(e)}")
+        raise
+    except Exception as e:
+        logger.error(f"Error inesperado: {str(e)}")
+        raise
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"\nError: {str(e)}")

@@ -176,25 +176,40 @@ class StorageConfig:
     output_storage_path: str = "./output/processed"
     cache_dir: str = "./cache"
 
+class VideoAnalyzerConfig(BaseModel):
+    """Configuración específica para el analizador de video"""
+    frame_rate: int = 25
+    min_scene_duration: float = 2.0
+    resolution: Tuple[int, int] = (1920, 1080)
+    quality_threshold: float = 0.85
+
 class VideoConfig(BaseModel):
-    """Configuración del procesamiento de video"""
+    """Configuración completa del procesamiento de video"""
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         extra='allow'
     )
     
-    # Campos directos
+    # Configuración general
     batch_size: int = 32
     max_retries: int = 3
     max_concurrent_tasks: int = 3
     max_memory_percent: int = 80
+    
+    # Configuración de AI
     temperature: float = 0.7
     max_tokens: int = 1024
     language: str = "es"
+    
+    # Configuración de almacenamiento
     storage_bucket: str = "video-accessibility-bucket"
     temp_storage_path: str = "./temp"
     output_storage_path: str = "./output/processed"
     cache_dir: str = "./cache"
+    download_path: str = "./downloads"
+    
+    # Configuración de video
+    analyzer: VideoAnalyzerConfig = Field(default_factory=VideoAnalyzerConfig)
     max_video_duration: int = 3600
     scene_detection_threshold: float = 0.3
     min_scene_duration: float = 2.0

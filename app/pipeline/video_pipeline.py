@@ -8,7 +8,7 @@ import re
 
 from app.services.video import VideoProcessor
 from app.services.ai import AIService, GeminiService
-from app.services.youtube import YouTubeDownloader
+from app.services.youtube.youtube_downloader import YouTubeDownloader
 from app.models import VideoMetadata, Scene, Transcript
 from app.models.schemas import (
     VideoRequest, 
@@ -18,12 +18,13 @@ from app.models.schemas import (
     ServiceType,
     ProcessingConfig,
     AIConfig,
-    StorageConfig
+    StorageConfig,
+    VideoQuality
 )
 from app.config import Settings
 from app.utils.validators import validate_video_format
 from app.utils.formatters import format_timestamp
-from app.core.error_handler import ProcessingError, ErrorType, ErrorDetails  # Añadir ErrorDetails
+from app.core.error_handler import ProcessingError, ErrorType, ErrorDetails
 from ..config.logging_config import setup_logging
 from app.core.video_analyzer import VideoAnalyzer
 from app.services.audio import AudioProcessor
@@ -34,26 +35,9 @@ class VideoPipeline:
     def __init__(self, config: Dict[str, Any]):
         try:
             logger.info("Inicializando VideoPipeline")
-            # Crear instancia de VideoConfig
-            self.config = VideoConfig(**{
-                "batch_size": config.get("batch_size", 32),
-                "max_retries": config.get("max_retries", 3),
-                "max_concurrent_tasks": config.get("max_concurrent_tasks", 3),
-                "max_memory_percent": config.get("max_memory_percent", 80),
-                "temperature": config.get("temperature", 0.7),
-                "max_tokens": config.get("max_tokens", 1024),
-                "language": config.get("language", "es"),
-                "storage_bucket": config.get("storage_bucket", "video-accessibility-bucket"),
-                "temp_storage_path": config.get("temp_storage_path", "./temp"),
-                "output_storage_path": config.get("output_storage_path", "./output/processed"),
-                "cache_dir": config.get("cache_dir", "./cache"),
-                "max_video_duration": config.get("max_video_duration", 3600),
-                "scene_detection_threshold": config.get("scene_detection_threshold", 0.3),
-                "min_scene_duration": config.get("min_scene_duration", 2.0)
-            })
+            self.config = VideoConfig.model_validate(config)
             logger.info("Configuración validada exitosamente")
             self._init_components()
-            
         except Exception as e:
             logger.error(f"Error inicializando componentes: {str(e)}")
             raise ProcessingError(
@@ -66,13 +50,18 @@ class VideoPipeline:
             )
 
     def _init_components(self):
-        """Inicializa los componentes del pipeline"""
         try:
-            # Pasar configuración como diccionario
             config_dict = self.config.model_dump()
             self.video_analyzer = VideoAnalyzer(config_dict)
             self.audio_processor = AudioProcessor(config_dict)
-            self.youtube_downloader = YouTubeDownloader(config_dict)
+            
+            # Configuración específica para YouTube
+            youtube_config = {
+                'download_path': config_dict['download_path'],
+                'max_retries': config_dict['max_retries']
+            }
+            self.youtube_downloader = YouTubeDownloader(youtube_config)
+            
             logger.info("Componentes inicializados correctamente")
         except Exception as e:
             logger.error(f"Error inicializando componentes: {str(e)}")
@@ -129,8 +118,8 @@ class VideoPipeline:
             # Validación de entrada
             self._validate_input(url, service_type)
             
-            # Procesamiento
-            result = await self._process_video(url, service_type)
+            # Procesamiento - Corregido para pasar solo url
+            result = await self._process_video(url)
             
             processing_time = time.time() - start_time
             logger.info("Procesamiento completado en %.2f segundos", processing_time)
@@ -240,3 +229,45 @@ class VideoPipeline:
         Genera un ID único para el proceso.
         """
         return f"proc_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+
+    async def _process_video(self, url: str) -> Dict[str, Any]:
+        """
+        Procesa un video desde una URL
+        
+        Args:
+            url: URL del video a procesar
+            
+        Returns:
+            Dict con resultados del procesamiento
+        """
+        try:
+            logger.info(f"Iniciando procesamiento de video: {url}")
+            
+            # Descargar video
+            video_path = await self.youtube_downloader.download(
+                url=url,
+                quality=VideoQuality.HIGH  # Ahora VideoQuality está importado correctamente
+            )
+            
+            # Analizar video
+            analysis_result = await self.video_analyzer.analyze_video(video_path)
+            
+            # Procesar audio
+            audio_result = await self.audio_processor.process(video_path)
+            
+            return {
+                "video_path": str(video_path),
+                "analysis": analysis_result,
+                "audio": audio_result
+            }
+            
+        except Exception as e:
+            logger.error(f"Error procesando URL {url}: {str(e)}")
+            raise ProcessingError(
+                ErrorType.PROCESSING_ERROR,
+                ErrorDetails(
+                    component="VideoPipeline",
+                    message=f"Error procesando video: {str(e)}",
+                    code="VIDEO_PROCESSING_ERROR"
+                )
+            )
