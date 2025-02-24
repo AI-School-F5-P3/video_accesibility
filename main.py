@@ -1,5 +1,9 @@
 import os
 import sys
+import logging
+
+# Reducir el nivel de logging
+logging.basicConfig(level=logging.WARNING)
 
 # Asegurarnos que la carpeta raíz está en el path de Python
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -15,17 +19,17 @@ from api.endpoints import video, subtitle, audiodesc
 
 settings = Settings()
 
+# Aplicación con opciones mínimas
 app = FastAPI(
-    title="MIRESSE - Accesibilidad",
-    description="API para generar audiodescripciones y subtítulos para videos",
-    version="1.0.0"
+    title="MIRESSE",
+    docs_url=None,  # Desactivar Swagger que consume recursos
+    redoc_url="/docs"  # Usar ReDoc que es más ligero
 )
 
-# Configuración CORS
+# Configuración CORS mínima
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -43,12 +47,14 @@ async def root():
     # Devolver el archivo HTML del frontend
     return FileResponse("front/index.html")
 
-# Ruta para la documentación de la API
-@app.get("/api")
-async def api_info():
-    return {"message": "MIRESSE API funcionando correctamente. Visita /docs para ver la documentación."}
-
 # Punto de entrada para ejecución directa
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "main:app", 
+        host="localhost", 
+        port=8000, 
+        reload=False,  # Desactivar reload para reducir consumo
+        workers=1,     # Usar solo un worker
+        log_level="warning"  # Reducir logging
+    )
