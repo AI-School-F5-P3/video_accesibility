@@ -1,4 +1,3 @@
-
 import os
 import sys
 
@@ -8,6 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 # Ajustar el import al archivo correcto
 from src.config.setup import Settings
@@ -40,6 +40,12 @@ app.include_router(audiodesc.router, prefix="/api/v1/audiodesc", tags=["audiodes
 
 @app.get("/")
 async def root():
+    # Devolver el archivo HTML del frontend
+    return FileResponse("front/index.html")
+
+# Ruta para la documentación de la API
+@app.get("/api")
+async def api_info():
     return {"message": "MIRESSE API funcionando correctamente. Visita /docs para ver la documentación."}
 
 # Punto de entrada para ejecución directa
