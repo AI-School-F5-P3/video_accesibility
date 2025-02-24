@@ -180,7 +180,45 @@ class VideoAnalyzer:
         except Exception as e:
             logger.error(f"Error en detección de silencios: {str(e)}")
             return []
+
+    def describe_scene(self, start_time, end_time, scene_info):
+        """
+        Genera una descripción detallada de una escena específica.
+            
+        Args:
+            start_time (float): Tiempo de inicio del silencio
+            end_time (float): Tiempo de fin del silencio
+            scene_info (dict): Información de la escena detectada
+                
+        Returns:
+            str: Descripción textual detallada de la escena
+        """
+        # Extraer fotogramas clave para análisis
+        frame_path = self._extract_key_frame(scene_info['start_time'], scene_info['end_time'])
+            
+            # Generar prompt detallado para mejorar la descripción
+        prompt = f"""
+         Actúa como un experto en audiodescripción según la norma UNE 153020.
+    
+        Genera una descripción detallada de lo que sucede en esta escena basada en la siguiente información:
+        - Tiempo: {start_time:.2f}s a {end_time:.2f}s
+        - Elementos visuales: {scene_info.get('visual_elements', [])}
+        - Tipo de escena: {scene_info.get('scene_type', 'no especificado')}
+        - Personajes detectados: {scene_info.get('characters', [])}
         
+        Tu descripción debe:
+        1. Describir acciones de personajes
+        2. Mencionar cambios importantes de escena
+        3. Describir elementos visuales relevantes
+        4. Ser concisa pero informativa
+        5. Adaptarse para ser narrada en el tiempo disponible ({end_time - start_time:.2f}s)
+        6. Seguir todas las pautas de la norma UNE 153020
+        """
+        
+        response = self.model.generate_content(prompt)
+        description = response.text.strip()
+        
+        return description
     
     def _is_dialogue_gap(self, audio: AudioSegment, start_ms: int, end_ms: int) -> bool:
         """

@@ -1,5 +1,3 @@
-
-
 import os
 import json
 import datetime
@@ -33,8 +31,8 @@ class AccessibilityPipeline:
     """
     def __init__(self, source: str, output_dir: Optional[str] = None):
 
-        # Máxima duración permitida (10 minutos en segundos)
-        self.MAX_DURATION = 600
+        # Máxima duración permitida (100 minutos en segundos)
+        self.MAX_DURATION = 6000
 
         self.source = source
         self.output_dir = Path(output_dir) if output_dir else Path("output")
@@ -57,7 +55,23 @@ class AccessibilityPipeline:
         if not self._check_ffmpeg():
             raise RuntimeError("ffmpeg not found. Please install ffmpeg and add it to PATH")
         
-
+        try:
+            self.text_processor = TextProcessor()
+            logger.info("TextProcessor initialized successfully")
+        except Exception as e:
+            logger.error(f"Error initializing TextProcessor: {str(e)}")
+            raise
+        
+        self.voice_synthesizer = VoiceSynthesizer()
+        
+        # Inicializar modelo de VertexAI
+        self._init_vertex_ai()
+        
+        # Inicializar componentes (ahora correctamente indentados dentro de __init__)
+        self.video_analyzer = VideoAnalyzer(model=self.vertex_model)
+        self.audio_processor = AudioProcessor(model=self.vertex_model)
+        self.speech_processor = SpeechProcessor(model=self.vertex_model)
+        
     def _init_vertex_ai(self):
         """Inicializa el modelo de VertexAI."""
         try:
@@ -72,23 +86,6 @@ class AccessibilityPipeline:
         except Exception as e:
             logger.error(f"Error inicializando VertexAI: {e}")
             raise
-
-    # Inicializar modelo de VertexAI
-        self._init_vertex_ai()
-        
-        # Inicializar componentes
-        self.video_analyzer = VideoAnalyzer(model=self.vertex_model)
-        self.audio_processor = AudioProcessor(model=self.vertex_model)
-        self.speech_processor = SpeechProcessor(model=self.vertex_model)
-        try:
-            self.text_processor = TextProcessor()
-            logger.info("TextProcessor initialized successfully")
-        except Exception as e:
-            logger.error(f"Error initializing TextProcessor: {str(e)}")
-            raise
-        self.voice_synthesizer = VoiceSynthesizer()
-        
-        
     
     def _check_ffmpeg(self) -> bool:
         """Verifica si ffmpeg está instalado y disponible."""
@@ -98,7 +95,6 @@ class AccessibilityPipeline:
         except FileNotFoundError:
             return False
     
-
     def process_video(self) -> Dict[str, str]:
         """
         Procesa el video completo generando subtítulos y audiodescripción.
@@ -118,14 +114,20 @@ class AccessibilityPipeline:
             # Procesar video
             logger.info("Iniciando procesamiento de accesibilidad...")
             
+            # Analizar todo el video primero para mejor contexto
+            scenes = self.video_analyzer.detect_scenes(video_path)
+            
             # Generar subtítulos
-            srt_path = self._generate_subtitles(video_path)
+            srt_path, subtitles_data = self._generate_subtitles(video_path)
             
             # Generar audiodescripción
-            audio_desc_path, audio_desc_script = self._generate_audio_description(video_path)
+            audio_desc_path, audio_desc_script, descriptions_data = self._generate_audio_description(video_path, scenes)
             
-            # Generar video final con audiodescripción
-            final_video = self._merge_audio_description(video_path, audio_desc_path)
+            # Generar guion completo
+            full_script_path = self._generate_full_script(video_path, subtitles_data, descriptions_data)
+            
+            # Generar video final con audiodescripción y subtítulos
+            final_video = self._merge_audio_description(video_path, audio_desc_path, srt_path)
             
             # Preparar archivos para descarga
             output_files = self._prepare_output_files(
@@ -133,6 +135,7 @@ class AccessibilityPipeline:
                 srt_path,
                 audio_desc_path,
                 audio_desc_script,
+                full_script_path,
                 final_video
             )
             
@@ -166,10 +169,10 @@ class AccessibilityPipeline:
 
     def _generate_subtitles(self, video_path: str) -> str:
         """
-        Genera subtítulos según UNE 153010.
+        Genera subtítulos según UNE 153010 y los guarda en un archivo .srt.
         
         Returns:
-            Ruta al archivo .srt generado
+            Ruta al archivo .srt generado.
         """
         logger.info("Generando subtítulos...")
         
@@ -186,15 +189,15 @@ class AccessibilityPipeline:
             end = str(timedelta(seconds=int(segment['end']))).replace('.', ',')
             
             # Formatear texto según UNE 153010
-            text = self.text_processor.format_subtitles(segment['text'])
+            formatted_subtitles = self.text_processor.format_subtitles(segment['text'])
             
-            # Añadir entrada SRT
-            srt_content.extend([
-                str(i),
-                f"{start} --> {end}",
-                text,
-                ""
-            ])
+            for subtitle in formatted_subtitles:
+                srt_content.extend([
+                    str(i),
+                    f"{start} --> {end}",
+                    subtitle['text'],
+                    ""
+                ])
         
         # Guardar archivo SRT
         srt_path = self.output_dir / "subtitles.srt"
@@ -296,27 +299,94 @@ class AccessibilityPipeline:
         combined.export(output_path, format="mp3")
         
         return str(output_path)
-
-    def _merge_audio_description(self, video_path: str, audio_desc_path: str) -> str:
+    def _generate_full_script(self, video_path, subtitles, audio_descriptions):
         """
-        Combina el video original con la audiodescripción.
+        Genera un guion completo del video combinando transcripciones y descripciones.
         
+        Args:
+            video_path (str): Ruta al video
+            subtitles (list): Lista de subtítulos procesados
+            audio_descriptions (list): Lista de descripciones de audio
+            
+        Returns:
+            str: Ruta al archivo de guion generado
+        """
+        logger.info("Generando guion completo...")
+        
+        # Combinar todo el contenido para análisis
+        all_content = {
+            "subtitles": subtitles,
+            "descriptions": audio_descriptions
+        }
+        
+        # Generar guion completo con IA
+        prompt = f"""
+        Actúa como un guionista profesional. Crea un guion completo basado en la siguiente información:
+        
+        SUBTÍTULOS:
+        {json.dumps(subtitles, indent=2, ensure_ascii=False)}
+        
+        DESCRIPCIONES:
+        {json.dumps(audio_descriptions, indent=2, ensure_ascii=False)}
+        
+        El guion debe:
+        1. Integrar coherentemente diálogos y descripciones
+        2. Incluir acotaciones detalladas
+        3. Identificar claramente a los personajes
+        4. Seguir un formato profesional de guion
+        5. Mantener la estructura narrativa original
+        """
+    
+        # Usar VertexAI para generar el guion
+        response = self.vertex_model.generate_content(prompt)
+        script = response.text
+    
+        # Guardar guion completo
+        script_path = self.output_dir / "full_script.txt"
+        with open(script_path, "w", encoding="utf-8") as f:
+            f.write(script)
+        
+        return str(script_path)
+
+    def _merge_audio_description(self, video_path: str, audio_desc_path: str, srt_path: str) -> str:
+        """
+        Combina el video original con la audiodescripción y subtítulos.
+        
+        Args:
+            video_path (str): Ruta al video original
+            audio_desc_path (str): Ruta al audio de la descripción
+            srt_path (str): Ruta al archivo SRT de subtítulos
+            
         Returns:
             Ruta al video final
         """
-        logger.info("Generando video final con audiodescripción...")
+        logger.info("Generando video final con audiodescripción y subtítulos...")
         
-        output_path = self.output_dir / "video_with_audio_description.mp4"
+        output_path = self.output_dir / "video_with_accessibility.mp4"
         
         # Mezclar audio original con audiodescripción
+        temp_audio_path = self.temp_dir / "mixed_audio.aac"
         subprocess.run([
             'ffmpeg', '-y',
             '-i', video_path,
             '-i', audio_desc_path,
             '-filter_complex', '[0:a][1:a]amix=inputs=2:duration=first[aout]',
-            '-map', '0:v',
             '-map', '[aout]',
-            '-c:v', 'copy',
+            '-c:a', 'aac',
+            '-b:a', '192k',
+            str(temp_audio_path)
+        ], check=True)
+        
+        # Añadir subtítulos al video final
+        subprocess.run([
+            'ffmpeg', '-y',
+            '-i', video_path,
+            '-i', str(temp_audio_path),
+            '-vf', f"subtitles={srt_path}:force_style='FontName=Arial,FontSize=24,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=3,Outline=1,Shadow=1,MarginV=20'",
+            '-map', '0:v',
+            '-map', '1:a',
+            '-c:v', 'libx264',
+            '-c:a', 'copy',
             str(output_path)
         ], check=True)
         
@@ -339,7 +409,7 @@ class AccessibilityPipeline:
         
         # Generar archivo de metadatos
         metadata = {
-            'processed_at': str(datetime.now()),
+            'processed_at': str(datetime.datetime.now()),
             'source': self.source,
             'standards': {
                 'subtitles': 'UNE 153010',
