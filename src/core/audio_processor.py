@@ -143,37 +143,38 @@ class VoiceSynthesizer:
             logging.error(f"Error initializing TTS client: {str(e)}")
             raise
 
-    def generate_audio(self, text: str, output_path: Path) -> Optional[Path]:
+    def generate_audio(self, text, rate=1.0, pitch=0.0):
         """
-        Generate audio from text using Google Cloud TTS.
+        Generate audio from text.
         
         Args:
-            text: Text to convert to speech
-            output_path: Path where the audio file will be saved
-            
+            text: Text to synthesize
+            rate: Speaking rate (1.0 is normal speed)
+            pitch: Voice pitch (0.0 is normal pitch)
+        
         Returns:
-            Path to the generated audio file, or None if generation fails
+            Audio content as bytes
         """
         try:
-            if not text:
-                logging.error("No text provided for audio generation")
-                return None
-
+            # Create custom audio config with the provided rate
+            audio_config = texttospeech_v1.AudioConfig(
+                audio_encoding=texttospeech_v1.AudioEncoding.LINEAR16,
+                speaking_rate=rate,
+                pitch=pitch
+            )
+            
+            # Create synthesis input
             synthesis_input = texttospeech_v1.SynthesisInput(text=text)
             
+            # Perform text-to-speech request
             response = self.tts_client.synthesize_speech(
                 input=synthesis_input,
                 voice=self.voice_params,
-                audio_config=self.audio_config
+                audio_config=audio_config
             )
             
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(output_path, 'wb') as out:
-                out.write(response.audio_content)
-                logging.info(f"Audio generated successfully: {output_path}")
-            
-            return output_path
-            
+            # Return audio content
+            return response.audio_content
         except Exception as e:
             logging.error(f"Error generating audio: {str(e)}")
-            return None
+            raise

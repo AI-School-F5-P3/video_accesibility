@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Obtener rutas desde las variables de entorno o establecer valores predeterminados
-video_dir = os.getenv("video_dir_path", "c:\\Windows\\ffmpeg\\Video")
+video_dir = os.getenv("video_dir_path", "c:\\Windows\\ffmpeg\\Video")  # Singular
 audio_dir = os.getenv("audio_dir_path", "c:\\Windows\\ffmpeg\\Audio")
 subs_dir = os.getenv("subs_dir_path", "c:\\Windows\\ffmpeg\\Subtitles")
 output_dir = os.getenv("output_dir_path", "c:\\Windows\\ffmpeg\\Output")
@@ -22,21 +22,21 @@ def move_files_and_process_ffmpeg():
     """Mueve archivos desde Temp a rutas fijas y ejecuta FFmpeg."""
     
     temp_files = {
-        "video": "C:/Users/Administrator/AppData/Local/Temp/video.mp4",
-        "audio": "C:/Users/Administrator/AppData/Local/Temp/audio.aac",
-        "subs": "C:/Users/Administrator/AppData/Local/Temp/subtitles.srt"
+        "video": str(Path("C:/Users/Administrator/AppData/Local/Temp/video.mp4").resolve()),
+        "audio": str(Path("C:/Users/Administrator/AppData/Local/Temp/audio.aac").resolve()),
+        "subs": str(Path("C:/Users/Administrator/AppData/Local/Temp/subtitles.srt").resolve())
     }
 
     fixed_paths = {
-        "video": os.path.join(video_dir, "video.mp4"),
-        "audio": os.path.join(audio_dir, "audio.aac"),
-        "subs": os.path.join(subs_dir, "subtitles.srt"),
-        "output": os.path.join(output_dir, "video_with_accessibility.mp4")
+        "video": os.path.join(video_dir),
+        "audio": os.path.join(audio_dir),
+        "subs": os.path.join(subs_dir),
+        "output": os.path.join(output_dir)
     }
 
     # Normalizar rutas para evitar problemas con espacios
     for key in fixed_paths:
-        fixed_paths[key] = os.path.normpath(fixed_paths[key])
+        fixed_paths[key] = str(Path(fixed_paths[key]).resolve())
 
     # Mover archivos si existen
     for key, temp_path in temp_files.items():
@@ -71,15 +71,9 @@ def move_files_and_process_ffmpeg():
     # Preparar comando ffmpeg con rutas correctas
     # En Windows, escapar las rutas correctamente
     if os.name == 'nt':  # Windows
-        video_path = fixed_paths["video"].replace('\\', '\\\\')
-        audio_path = fixed_paths["audio"].replace('\\', '\\\\')
         subs_path = fixed_paths["subs"].replace('\\', '\\\\').replace(':', '\\:')
-        output_path = fixed_paths["output"].replace('\\', '\\\\')
     else:  # Linux/Mac
-        video_path = shlex.quote(fixed_paths["video"])
-        audio_path = shlex.quote(fixed_paths["audio"])
-        subs_path = shlex.quote(fixed_paths["subs"])
-        output_path = shlex.quote(fixed_paths["output"])
+        subs_path = fixed_paths["subs"].replace(':', '\\:')
 
     # Construir comando FFmpeg
     ffmpeg_cmd = [

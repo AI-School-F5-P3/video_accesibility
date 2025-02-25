@@ -440,7 +440,7 @@ class YouTubeVideoManager:
                 video_format='.mp4', thumbnail=info_dict.get('thumbnail', ''), width=1920, height=1080
             )
 
-    def download_video(self) -> str:
+    def download_video(self, output_dir=None ) -> str:
         ydl_opts = {
             'format': 'best',  # Cambiado de 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]' a 'best'
             'outtmpl': os.path.join(tempfile.gettempdir(), '%(title)s.%(ext)s')

@@ -5,6 +5,7 @@ import logging
 import tempfile
 import subprocess
 import sys
+import shutil
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Union
 from datetime import timedelta
@@ -95,6 +96,50 @@ class AccessibilityPipeline:
         except FileNotFoundError:
             return False
     
+    def _get_video(self) -> str:
+        """
+        Obtiene el video desde la fuente (URL o archivo local).
+        
+        Returns:
+            str: Ruta al archivo de video
+        """
+        if self.source.startswith(('http://', 'https://', 'www.', 'youtube.com', 'youtu.be')):
+            # Es una URL de YouTube
+            logger.info(f"Descargando video de YouTube: {self.source}")
+            yt_manager = YouTubeVideoManager(youtube_url=self.source)
+            video_path = yt_manager.download_video(output_dir=self.temp_dir)
+            return video_path
+        elif os.path.isfile(self.source):
+            # Es un archivo local
+            logger.info(f"Usando archivo de video local: {self.source}")
+            return self.source
+        else:
+            raise ValueError(f"Fuente no válida: {self.source}")
+        
+    def _get_video_duration(self, video_path: str) -> float:
+        """
+        Obtiene la duración del video en segundos.
+        
+        Args:
+            video_path (str): Ruta al archivo de video
+            
+        Returns:
+            float: Duración en segundos
+        """
+        try:
+            result = subprocess.run(
+                ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
+                '-of', 'default=noprint_wrappers=1:nokey=1', video_path],
+                capture_output=True,
+                text=True
+            )
+            duration = float(result.stdout.strip())
+            logger.info(f"Duración del video: {duration:.2f} segundos")
+            return duration
+        except Exception as e:
+            logger.error(f"Error al obtener duración del video: {e}")
+            raise
+    
     def process_video(self) -> Dict[str, str]:
         """
         Procesa el video completo generando subtítulos y audiodescripción.
@@ -112,23 +157,32 @@ class AccessibilityPipeline:
                 raise ValueError(f"Video excede duración máxima de {self.MAX_DURATION/60} minutos")
             
             # Procesar video
-            logger.info("Iniciando procesamiento de accesibilidad...")
+            logger.info(f"Iniciando procesamiento del video: {self.source}")
             
             # Analizar todo el video primero para mejor contexto
+            logger.info("Analizando escenas del video...")
             scenes = self.video_analyzer.detect_scenes(video_path)
+            logger.info(f"Se detectaron {len(scenes)} escenas en el video")
             
-            # Generar subtítulos
-            # Corregido: Ahora desempaquetamos correctamente
+            # Generar subtítulos según UNE 153010
+            logger.info("Generando subtítulos según estándar UNE 153010...")
             srt_path, subtitles_data = self._generate_subtitles(video_path)
+            logger.info(f"Subtítulos generados y guardados en: {srt_path}")
             
-            # Generar audiodescripción
+            # Generar audiodescripción según UNE 153020
+            logger.info("Generando audiodescripción según estándar UNE 153020...")
             audio_desc_path, audio_desc_script = self._generate_audio_description(video_path, scenes)
+            logger.info(f"Audiodescripción generada y guardada en: {audio_desc_path}")
             
-            # Generar guion completo
+            # Generar guion completo minuto a minuto
+            logger.info("Generando guion completo minuto a minuto...")
             full_script_path = self._generate_full_script(video_path, subtitles_data, self.descriptions_data)
+            logger.info(f"Guion completo generado y guardado en: {full_script_path}")
             
             # Generar video final con audiodescripción y subtítulos
+            logger.info("Generando video final con accesibilidad completa...")
             final_video = self._merge_audio_description(video_path, audio_desc_path, srt_path)
+            logger.info(f"Video final generado y guardado en: {final_video}")
             
             # Preparar archivos para descarga
             output_files = self._prepare_output_files(
@@ -140,33 +194,12 @@ class AccessibilityPipeline:
                 final_video
             )
             
+            logger.info("¡Procesamiento completado con éxito!")
             return output_files
             
         except Exception as e:
             logger.error(f"Error en el procesamiento: {e}")
             raise
-
-    def _get_video(self) -> str:
-        """Obtiene el video desde URL o archivo local."""
-        if self.source.startswith(('http://', 'https://')):
-            # Descargar de YouTube
-            yt_manager = YouTubeVideoManager(self.source)
-            video_path = yt_manager.download_video()
-        else:
-            # Copiar archivo local
-            video_path = str(self.temp_dir / "input_video.mp4")
-            subprocess.run(['ffmpeg', '-i', self.source, '-c', 'copy', video_path])
-        
-        return video_path
-
-    def _get_video_duration(self, video_path: str) -> float:
-        """Obtiene la duración del video en segundos."""
-        result = subprocess.run(
-            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', video_path],
-            capture_output=True,
-            text=True
-        )
-        return float(result.stdout)
 
     def _generate_subtitles(self, video_path: str) -> tuple[str, List[Dict]]:
         """
@@ -221,7 +254,7 @@ class AccessibilityPipeline:
 
     def _generate_audio_description(self, video_path: str, scenes=None) -> tuple[str, str]:
         """
-        Genera audiodescripción según UNE 153020.
+        Genera audiodescripción según UNE 153020 con mejor calidad de audio.
         
         Returns:
             Tuple con ruta al archivo de audio y script
@@ -254,33 +287,22 @@ class AccessibilityPipeline:
                     'text': desc
                 })
         
-        # Generar audio para cada descripción
-        audio_segments = []
-        script_content = []
-        
+        # Almacenar descripciones para uso posterior
+        self.descriptions_data = descriptions
+
+        # Mejorar calidad de texto antes de síntesis
         for desc in descriptions:
-            # Formatear texto según UNE 153020
-            text = self.text_processor.format_audio_description(
+            desc['text'] = self.text_processor.format_audio_description(
                 desc['text'],
                 max_duration=desc['end'] - desc['start']
             )
-            
-            # Generar audio
-            audio_file = self.voice_synthesizer.generate_audio(
-                text,
-                self.temp_dir / f"desc_{desc['start']}.mp3"
-            )
-            
-            if audio_file:
-                audio_segments.append({
-                    'file': audio_file,
-                    'start': desc['start']
-                })
-                
-            # Añadir al script
+        
+        # Generar script completo para mejor coherencia
+        script_content = []
+        for desc in descriptions:
             script_content.extend([
                 f"[{desc['start']:.2f} - {desc['end']:.2f}]",
-                text,
+                desc['text'],
                 ""
             ])
         
@@ -289,13 +311,55 @@ class AccessibilityPipeline:
         with open(script_path, 'w', encoding='utf-8') as f:
             f.write('\n'.join(script_content))
         
-        # Combinar segmentos de audio
-        final_audio = self._combine_audio_segments(audio_segments)
-
-        # Almacenar descripciones para uso posterior
-        self.descriptions_data = descriptions
+        # Mejorar generación de audio
+        audio_segments = []
         
-        return str(final_audio), str(script_path)
+        # Opciones de voz mejoradas (ajustar según el sintetizador disponible)
+        voice_options = {
+            'rate': 0.9,  # Velocidad ligeramente más lenta para mejor comprensión
+            'pitch': 1.0,  # Tono natural
+            'volume': 1.2  # Volumen ligeramente aumentado para destacar sobre el audio original
+        }
+        
+        for desc in descriptions:
+            # Crear nombre de archivo sin espacios
+            filename = f"desc_{desc['start']:.2f}.mp3"
+            audio_file = self.temp_dir / filename
+
+            # Generar audio con opciones mejoradas
+            audio_file = self.voice_synthesizer.generate_audio(
+                desc['text'], 
+                rate=voice_options['rate'],
+                pitch=voice_options['pitch']
+            )
+            
+            if audio_file:
+                audio_segments.append({
+                    'file': audio_file,
+                    'start': desc['start']
+                })
+        
+        # Combinar segmentos de audio con mejor calidad
+        final_audio = self._combine_audio_segments(audio_segments)
+        
+        # Mejorar calidad del audio final
+        enhanced_audio_path = self.output_dir / "audio_description_enhanced.mp3"
+        try:
+            # Normalizar y mejorar calidad del audio
+            subprocess.run([
+                'ffmpeg', '-y',
+                '-i', final_audio,
+                '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11,highpass=f=200,lowpass=f=3000',  # Normalización y filtros para claridad
+                '-ar', '48000',  # Alta frecuencia de muestreo
+                '-b:a', '192k',  # Bitrate alto
+                str(enhanced_audio_path)
+            ], check=True)
+            
+            return str(enhanced_audio_path), str(script_path)
+        except subprocess.CalledProcessError:
+            # Si falla la mejora, usar el audio original
+            logger.warning("No se pudo mejorar el audio, usando versión original")
+            return final_audio, str(script_path)
 
     def _combine_audio_segments(self, segments: List[Dict[str, Any]]) -> str:
         """Combina segmentos de audio con silencios entre ellos."""
@@ -308,8 +372,12 @@ class AccessibilityPipeline:
                 combined += AudioSegment.silent(duration=silence_duration)
             
             # Añadir segmento de audio
-            audio = AudioSegment.from_file(segment['file'])
-            combined += audio
+            try:
+                audio = AudioSegment.from_file(segment['file'])
+                combined += audio
+            except Exception as e:
+                logger.error(f"Error al procesar archivo de audio '{segment['file']}': {e}")
+        
         
         # Guardar audio final
         output_path = self.output_dir / "audio_description.mp3"
@@ -319,7 +387,8 @@ class AccessibilityPipeline:
 
     def _generate_full_script(self, video_path, subtitles, audio_descriptions):
         """
-        Genera un guion completo del video combinando transcripciones y descripciones.
+        Genera un guion completo del video combinando transcripciones y descripciones,
+        organizando el contenido minuto a minuto.
         
         Args:
             video_path (str): Ruta al video
@@ -329,38 +398,85 @@ class AccessibilityPipeline:
         Returns:
             str: Ruta al archivo de guion generado
         """
-        logger.info("Generando guion completo...")
+        logger.info("Generando guion completo minuto a minuto...")
         
-        # Combinar todo el contenido para análisis
-        all_content = {
-            "subtitles": subtitles,
-            "descriptions": audio_descriptions
-        }
+        # Obtener duración total del video
+        result = subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', video_path],
+            capture_output=True,
+            text=True
+        )
+        total_duration = float(result.stdout)
+        
+        # Preparar datos para segmentación por minutos
+        minute_segments = {}
+        total_minutes = int(total_duration / 60) + 1
+        
+        # Organizar subtítulos por minutos
+        for sub in subtitles:
+            minute = int(sub['start'] / 60)
+            if minute not in minute_segments:
+                minute_segments[minute] = {"subtitles": [], "descriptions": []}
+            minute_segments[minute]["subtitles"].append(sub)
+        
+        # Organizar descripciones por minutos
+        for desc in audio_descriptions:
+            minute = int(desc['start'] / 60)
+            if minute not in minute_segments:
+                minute_segments[minute] = {"subtitles": [], "descriptions": []}
+            minute_segments[minute]["descriptions"].append(desc)
         
         # Generar guion completo con IA
         prompt = f"""
-        Actúa como un guionista profesional. Crea un guion completo basado en la siguiente información:
+        Actúa como un guionista profesional especializado en audiodescripción según la norma UNE 153020.
         
-        SUBTÍTULOS:
-        {json.dumps(subtitles, indent=2, ensure_ascii=False)}
+        Crea un guion completo MINUTO A MINUTO del siguiente video con duración total de {total_minutes} minutos.
+        El guion debe incluir tanto los diálogos (subtítulos) como las descripciones visuales (audiodescripción).
         
-        DESCRIPCIONES:
-        {json.dumps(audio_descriptions, indent=2, ensure_ascii=False)}
+        Para cada minuto, incluye una sección claramente identificada (MINUTO 1, MINUTO 2, etc.) y detalla TODO lo que sucede
+        en ese segmento de tiempo, integrando diálogos y elementos visuales.
         
-        El guion debe:
-        1. Integrar coherentemente diálogos y descripciones
-        2. Incluir acotaciones detalladas
-        3. Identificar claramente a los personajes
-        4. Seguir un formato profesional de guion
-        5. Mantener la estructura narrativa original
+        CONTENIDO DEL VIDEO POR MINUTOS:
         """
-    
+        
+        # Añadir contenido organizado por minutos
+        for minute in range(total_minutes):
+            prompt += f"\n\nMINUTO {minute+1}:\n"
+            
+            if minute in minute_segments:
+                data = minute_segments[minute]
+                
+                if data["subtitles"]:
+                    prompt += "DIÁLOGOS:\n"
+                    for sub in data["subtitles"]:
+                        time_str = f"{sub['start']:.2f}s - {sub['end']:.2f}s"
+                        prompt += f"- [{time_str}] {sub['text']}\n"
+                
+                if data["descriptions"]:
+                    prompt += "\nDESCRIPCIONES VISUALES:\n"
+                    for desc in data["descriptions"]:
+                        time_str = f"{desc['start']:.2f}s - {desc['end']:.2f}s"
+                        prompt += f"- [{time_str}] {desc['text']}\n"
+            else:
+                prompt += "[Sin contenido transcrito para este minuto]\n"
+        
+        prompt += """
+        El guion final debe:
+        1. Mantener una estructura clara MINUTO A MINUTO
+        2. Integrar diálogos y descripciones de forma coherente
+        3. Incluir acotaciones detalladas sobre lo que se ve en pantalla
+        4. Identificar claramente a los personajes cuando hablan
+        5. Seguir el formato profesional de guion cinematográfico
+        6. Marcar claramente los tiempos de cada elemento (en segundos)
+        7. Aportar contexto visual para cada diálogo cuando sea necesario
+        """
+
         # Usar VertexAI para generar el guion
         response = self.vertex_model.generate_content(prompt)
         script = response.text
-    
+        
         # Guardar guion completo
-        script_path = self.output_dir / "full_script.txt"
+        script_path = self.output_dir / "full_script_minute_by_minute.txt"
         with open(script_path, "w", encoding="utf-8") as f:
             f.write(script)
         
@@ -368,7 +484,7 @@ class AccessibilityPipeline:
 
     def _merge_audio_description(self, video_path: str, audio_desc_path: str, srt_path: str) -> str:
         """
-        Combina el video original con la audiodescripción y subtítulos.
+        Combina el video original con la audiodescripción y subtítulos con mejor calidad.
         
         Args:
             video_path (str): Ruta al video original
@@ -385,39 +501,106 @@ class AccessibilityPipeline:
         # Nos aseguramos de que el directorio de salida exista
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Mezclar audio original con audiodescripción
+        # Normalizar rutas para evitar problemas con espacios y caracteres especiales
+        video_path_norm = str(Path(video_path).resolve())
+        audio_desc_path_norm = str(Path(audio_desc_path).resolve())
+        srt_path_norm = str(Path(srt_path).resolve())
+        output_path_norm = str(output_path.resolve())
+
+        # Mezclar audio original con audiodescripción con mejor calidad de mezcla
         temp_audio_path = self.temp_dir / "mixed_audio.aac"
-        subprocess.run([
-            'ffmpeg', '-y',
-            '-i', video_path,
-            '-i', audio_desc_path,
-            '-filter_complex', '[0:a][1:a]amix=inputs=2:duration=first[aout]',
-            '-map', '[aout]',
-            '-c:a', 'aac',
-            '-b:a', '192k',
-            str(temp_audio_path)
-        ], check=True)
+        temp_audio_path_norm = str(temp_audio_path.resolve())
+
+        # Extraer audio original primero
+        original_audio_path = self.temp_dir / "original_audio.aac"
+        original_audio_path_norm = str(original_audio_path.resolve())
         
-        # Convertir la ruta a absoluta para evitar problemas con las rutas relativas
-        abs_srt_path = os.path.abspath(srt_path)
+        try:
+            # Extraer audio original y normalizar su volumen
+            subprocess.run([
+                'ffmpeg', '-y',
+                '-i', video_path_norm,
+                '-vn',
+                '-af', 'loudnorm=I=-18:TP=-1.5:LRA=11', # Normalizar volumen
+                '-c:a', 'aac',
+                '-b:a', '192k',
+                original_audio_path_norm
+            ], check=True, stderr=subprocess.PIPE, text=True)
+        except subprocess.CalledProcessError as e:
+            logger.error(f"FFmpeg error extracting original audio: {e.stderr}")
+            raise
         
-        # Escapar la ruta para evitar problemas con caracteres especiales
-        escaped_srt_path = abs_srt_path.replace('\\', '\\\\').replace(':', '\\:')
+        # Mezclar ambos audios con método avanzado para mejor integración
+        try:
+            subprocess.run([
+                'ffmpeg', '-y',
+                '-i', original_audio_path_norm,
+                '-i', audio_desc_path_norm,
+                '-filter_complex', 
+                # Complejidad adicional: Bajar volumen de audio original durante descripciones
+                '[0:a]volume=1.0[original];'
+                '[1:a]volume=1.2[desc];'
+                '[original][desc]amix=inputs=2:duration=first:dropout_transition=0.5,'
+                'dynaudnorm=f=200:g=3:p=0.5',  # Normalización dinámica
+                '-c:a', 'aac',
+                '-b:a', '256k',  # Mayor bitrate para mejor calidad
+                '-ar', '48000',  # Alta frecuencia de muestreo
+                temp_audio_path_norm
+            ], check=True, stderr=subprocess.PIPE, text=True)
+        except subprocess.CalledProcessError as e:
+            logger.error(f"FFmpeg error mixing audio: {e.stderr}")
+            # Intentar método alternativo si falla
+            try:
+                logger.info("Intentando método alternativo para mezclar audio...")
+                subprocess.run([
+                    'ffmpeg', '-y',
+                    '-i', original_audio_path_norm,
+                    '-i', audio_desc_path_norm,
+                    '-filter_complex', 
+                    '[0:a][1:a]amix=inputs=2:duration=first:weights=0.8 0.9',  # Mezcla con pesos
+                    '-c:a', 'aac',
+                    '-b:a', '192k',
+                    temp_audio_path_norm
+                ], check=True, stderr=subprocess.PIPE, text=True)
+            except subprocess.CalledProcessError as e2:
+                logger.error(f"FFmpeg error con método alternativo: {e2.stderr}")
+                raise
         
-        # Añadir subtítulos al video final
-        subprocess.run([
-            'ffmpeg', '-y',
-            '-i', video_path,
-            '-i', str(temp_audio_path),
-            '-vf', f"subtitles={escaped_srt_path}:force_style='FontName=Arial,FontSize=24,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=3,Outline=1,Shadow=1,MarginV=20'",
-            '-map', '0:v',
-            '-map', '1:a',
-            '-c:v', 'libx264',
-            '-c:a', 'copy',
-            str(output_path)
-        ], check=True)
+        # Configuración mejorada de subtítulos (según UNE 153010)
+        # Escapar la ruta del archivo de subtítulos para Windows
+        if os.name == 'nt':  # Windows
+            srt_path_escaped = srt_path_norm.replace('\\', '\\\\').replace(':', '\\:')
+        else:  # Linux/Mac
+            srt_path_escaped = srt_path_norm.replace(':', '\\:')
+        
+        # Añadir subtítulos al video final con estilo UNE
+        try:
+            subtitle_style = (
+                'FontName=Arial,FontSize=24,PrimaryColour=&HFFFFFF,BackColour=&H80000000,'
+                'OutlineColour=&H000000,BorderStyle=3,Outline=1,Shadow=1,MarginV=20,'
+                'Alignment=2'  # Centrado en la parte inferior
+            )
+            
+            subprocess.run([
+                'ffmpeg', '-y',
+                '-i', video_path_norm,
+                '-i', temp_audio_path_norm,
+                '-c:v', 'libx264',
+                '-preset', 'slow',  # Mejor calidad de codificación
+                '-crf', '18',  # Alta calidad visual
+                '-c:a', 'aac',
+                '-b:a', '192k',
+                '-vf', f"subtitles='{srt_path_escaped}':force_style='{subtitle_style}'",
+                '-metadata', 'title="Video con audiodescripción según UNE 153020"',
+                '-metadata', 'comment="Subtítulos según UNE 153010"',
+                output_path_norm
+            ], check=True, stderr=subprocess.PIPE, text=True)
+        except subprocess.CalledProcessError as e:
+            logger.error(f"FFmpeg error adding subtitles: {e.stderr}")
+            raise
         
         return str(output_path)
+    
     def _prepare_output_files(self, 
                             video_path: str,
                             srt_path: str,
@@ -434,6 +617,32 @@ class AccessibilityPipeline:
             'full_script': full_script_path,
             'video_with_audio_description': final_video_path
         }
+        
+        # Copiar archivos para el video_processor.py
+        temp_dir = Path("C:/Users/Administrator/AppData/Local/Temp")
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            # Copiar video
+            shutil.copy2(video_path, temp_dir / "video.mp4")
+            logger.info(f"Video copiado a {temp_dir / 'video.mp4'}")
+            
+            # Extraer y copiar audio
+            audio_temp = self.temp_dir / "temp_audio.aac"
+            subprocess.run([
+                'ffmpeg', '-y',
+                '-i', video_path,
+                '-vn', '-acodec', 'copy',
+                str(audio_temp)
+            ], check=True)
+            shutil.copy2(str(audio_temp), temp_dir / "audio.aac")
+            logger.info(f"Audio copiado a {temp_dir / 'audio.aac'}")
+            
+            # Copiar subtítulos
+            shutil.copy2(srt_path, temp_dir / "subtitles.srt")
+            logger.info(f"Subtítulos copiados a {temp_dir / 'subtitles.srt'}")
+        except Exception as e:
+            logger.error(f"Error copiando archivos para video_processor: {e}")
         
         # Generar archivo de metadatos
         metadata = {
@@ -454,15 +663,73 @@ class AccessibilityPipeline:
         return final_paths
 
 if __name__ == "__main__":
-    # Ejemplo de uso
-    source = input("Introduce URL de YouTube o ruta al video: ")
-    pipeline = AccessibilityPipeline(source)
+    print("\n===== SISTEMA DE GENERACIÓN DE ACCESIBILIDAD PARA VIDEOS =====")
+    print("(Compatible con estándares UNE 153010 y UNE 153020)")
+    print("\nEste programa procesa videos para generar:")
+    print("- Subtítulos profesionales (UNE 153010)")  
+    print("- Audiodescripción (UNE 153020)")
+    print("- Guion completo minuto a minuto")
+    print("- Video final con accesibilidad integrada")
+    print("\nSoporta videos de YouTube y archivos locales.\n")
+    
+    # Solicitar ruta o URL del video
+    source = input("Introduce URL de YouTube o ruta al video local: ")
+    
+    # Solicitar directorio de salida (opcional)
+    output_dir = input("Directorio de salida (dejar en blanco para usar 'output/'): ")
+    output_dir = output_dir if output_dir.strip() else "output"
     
     try:
+        # Inicializar pipeline
+        print("\n[1/5] Iniciando pipeline de procesamiento...")
+        pipeline = AccessibilityPipeline(source, output_dir)
+        
+        # Procesar video
+        print("[2/5] Analizando video...")
         output_files = pipeline.process_video()
-        print("\n✅ Procesamiento completado!")
+        
+        # Mostrar resultados
+        print("\n✅ ¡Procesamiento completado con éxito!")
         print("\nArchivos generados:")
-        for key, path in output_files.items():
-            print(f"- {key}: {path}")
+        
+        # Agrupar por categoría
+        print("\n📝 GUIONES:")
+        if 'full_script' in output_files:
+            print(f"  - Guion completo: {output_files['full_script']}")
+        if 'audio_description_script' in output_files:
+            print(f"  - Guion de audiodescripción: {output_files['audio_description_script']}")
+            
+        print("\n🎬 MEDIOS:")
+        if 'video_with_audio_description' in output_files:
+            print(f"  - Video accesible: {output_files['video_with_audio_description']}")
+        if 'subtitles' in output_files:
+            print(f"  - Archivo de subtítulos: {output_files['subtitles']}")
+        if 'audio_description' in output_files:
+            print(f"  - Audio de descripciones: {output_files['audio_description']}")
+        
+        # Abrir directorio de salida
+        print(f"\n📂 Todos los archivos se han guardado en: {os.path.abspath(output_dir)}")
+        try:
+            if os.name == 'nt':  # Windows
+                os.startfile(output_dir)
+            elif os.name == 'posix':  # Linux/Mac
+                if 'darwin' in sys.platform:  # Mac
+                    subprocess.run(['open', output_dir])
+                else:  # Linux
+                    subprocess.run(['xdg-open', output_dir])
+            print("\n▶️ Abriendo directorio de salida...")
+        except:
+            pass
+        
     except Exception as e:
-        print(f"\n❌ Error: {str(e)}")
+        print(f"\n❌ Error durante el procesamiento: {str(e)}")
+        # Sugerir soluciones comunes
+        if "ffmpeg" in str(e).lower():
+            print("\nSugerencia: Asegúrate de tener ffmpeg instalado y en el PATH del sistema.")
+            print("Puedes descargarlo desde: https://ffmpeg.org/download.html")
+        elif "whisper" in str(e).lower():
+            print("\nSugerencia: Verifica que openai-whisper esté correctamente instalado:")
+            print("pip install openai-whisper setuptools-rust")
+        elif "vertex" in str(e).lower() or "google" in str(e).lower():
+            print("\nSugerencia: Verifica tus credenciales de Google Cloud y variables de entorno.")
+            print("Asegúrate de que GOOGLE_APPLICATION_CREDENTIALS esté configurado correctamente.")
