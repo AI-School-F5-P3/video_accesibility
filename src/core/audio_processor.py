@@ -28,7 +28,7 @@ class AudioProcessor:
         )
         self.audio_config = texttospeech_v1.AudioConfig(
             audio_encoding=texttospeech_v1.AudioEncoding.LINEAR16,
-            speaking_rate=1.2,
+            speaking_rate=1.25,
             pitch=0.0
         )
         
