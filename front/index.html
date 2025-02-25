@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -36,7 +37,7 @@
         </div>
     </nav>
 
-    <main class="container py-5">
+    <main class="container py-5" id="main-content">
         <header class="text-center mb-5">
             <h1 class="display-4">MIRESSE</h1>
             <p class="lead">Audiodescripciones y subtítulos para la accesibilidad</p>
@@ -62,11 +63,12 @@
             </div>
         </nav>
 
-        <div class="row">
-            <!-- Columna Izquierda: Opciones de entrada -->
-            <div class="col-lg-5">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body p-4">
+        <!-- Panel de Entrada y Configuración -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="row">
+                    <!-- Columna Izquierda: Opciones de entrada -->
+                    <div class="col-lg-6">
                         <h2 class="h4 mb-4">
                             <i class="bi bi-film"></i> Entrada de Video
                         </h2>
@@ -110,35 +112,24 @@
                             </div>
                         </section>
                     </div>
-                </div>
-            </div>
 
-            <!-- Columna Derecha: Opciones de configuración -->
-            <div class="col-lg-7">
-                <div class="card shadow-sm">
-                    <div class="card-body p-4">
+                    <!-- Columna Derecha: Opciones de configuración -->
+                    <div class="col-lg-6">
                         <h2 class="h4 mb-4">
                             <i class="bi bi-gear"></i> Opciones de Análisis
                         </h2>
 
-                        <div class="row g-4">
+                        <div class="row mb-4">
                             <!-- Audiodescripción -->
                             <div class="col-md-6">
                                 <div class="card h-100">
                                     <div class="card-body">
                                         <h3 class="h5">Audiodescripción</h3>
-                                        <div class="form-check mb-3">
+                                        <div class="form-check">
                                             <input class="form-check-input" type="checkbox" id="audioDesc">
                                             <label class="form-check-label" for="audioDesc">
                                                 Generar audiodescripción
                                             </label>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Voz para narración</label>
-                                            <select class="form-select" id="voiceSelect">
-                                                <option value="es-ES-F">Española (Mujer)</option>
-                                                <option value="es-ES-M">Español (Hombre)</option>
-                                            </select>
                                         </div>
                                     </div>
                                 </div>
@@ -149,121 +140,104 @@
                                 <div class="card h-100">
                                     <div class="card-body">
                                         <h3 class="h5">Subtítulos</h3>
-                                        <div class="form-check mb-3">
+                                        <div class="form-check">
                                             <input class="form-check-input" type="checkbox" id="subtitles">
                                             <label class="form-check-label" for="subtitles">
                                                 Generar subtítulos
                                             </label>
                                         </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Formato de salida</label>
-                                            <select class="form-select" id="subtitleFormat">
-                                                <option value="srt">SRT</option>
-                                                <option value="vtt">VTT</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Opciones adicionales -->
-                            <div class="col-12">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <h3 class="h5">Opciones adicionales</h3>
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <label class="form-label">Calidad de salida</label>
-                                                <select class="form-select" id="outputQuality">
-                                                    <option value="high">Alta calidad</option>
-                                                    <option value="medium">Calidad media</option>
-                                                    <option value="low">Calidad baja</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label">Idioma objetivo</label>
-                                                <select class="form-select" id="targetLanguage">
-                                                    <option value="es">Español</option>
-                                                    <option value="en">Inglés</option>
-                                                    <option value="fr">Francés</option>
-                                                </select>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="text-center mt-4">
+                        <!-- Mensaje informativo -->
+                        <div class="alert alert-info mb-4">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <small>Se procesan videos de hasta 10 minutos, en español. Para otras opciones, contáctanos.</small>
+                        </div>
+
+                        <div class="text-center">
                             <button class="btn btn-lg btn-custom" id="processBtn">
                                 <i class="bi bi-play-circle"></i> Procesar Video
                             </button>
                             <div class="text-muted small mt-2">
-                                Se procesará el video desde URL o archivo según lo seleccionado
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Processing Status -->
-                <div id="processingStatus" class="mt-4 d-none">
-                    <div class="card">
-                        <div class="card-body">
-                            <h2 class="h5">Estado del Procesamiento</h2>
-                            <div class="progress mb-3">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                                     role="progressbar"></div>
-                            </div>
-                            <p id="statusText" class="text-muted mb-1">Preparando procesamiento...</p>
-                            <p id="estimatedTime" class="small text-muted">Tiempo estimado: calculando...</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Results Section -->
-                <div id="resultsSection" class="mt-4 d-none">
-                    <div class="card">
-                        <div class="card-body">
-                            <h2 class="h5">Resultados</h2>
-                            
-                            <!-- Tabs para resultados -->
-                            <ul class="nav nav-tabs" id="resultTabs" role="tablist">
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link active" id="preview-tab" data-bs-toggle="tab" 
-                                            data-bs-target="#previewTab" type="button" role="tab">
-                                        <i class="bi bi-play-circle"></i> Vista Previa
-                                    </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="download-tab" data-bs-toggle="tab" 
-                                            data-bs-target="#downloadTab" type="button" role="tab">
-                                        <i class="bi bi-download"></i> Descargas
-                                    </button>
-                                </li>
-                            </ul>
-                            
-                            <!-- Contenido de tabs -->
-                            <div class="tab-content mt-3">
-                                <!-- Tab de Vista Previa -->
-                                <div class="tab-pane fade show active" id="previewTab" role="tabpanel">
-                                    <video id="resultVideo" class="w-100" controls>
-                                        <source src="" type="video/mp4">
-                                        <!-- Los subtítulos se añadirán con JavaScript -->
-                                    </video>
-                                </div>
-                                
-                                <!-- Tab de Descargas -->
-                                <div class="tab-pane fade" id="downloadTab" role="tabpanel">
-                                    <!-- Se llenará con JavaScript -->
-                                </div>
+                                Se procesará el video según las opciones seleccionadas
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </main>
 
+        <!-- Processing Status -->
+        <div id="processingStatus" class="mb-4 d-none">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h5">Estado del Procesamiento</h2>
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar"></div>
+                    </div>
+                    <p id="statusText" class="text-muted mb-1">Preparando procesamiento...</p>
+                    <p id="estimatedTime" class="small text-muted">Tiempo estimado: calculando...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="h4 mb-4">
+                    <i class="bi bi-display"></i> Visualización
+                </h2>
+
+                <!-- Initial message when no results yet -->
+                <div id="noResultsMessage">
+                    <div class="text-center py-5">
+                        <i class="bi bi-camera-video display-1 text-muted"></i>
+                        <p class="lead mt-3">Aquí aparecerán tus resultados</p>
+                        <p class="text-muted">Sube un video y procésalo para generar subtítulos o audiodescripciones</p>
+                    </div>
+                </div>
+
+                <!-- Results content (initially hidden) -->
+                <div id="resultsSection" class="d-none">
+                    <!-- Tabs para resultados -->
+                    <ul class="nav nav-tabs" id="resultTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="preview-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#previewTab" type="button" role="tab">
+                                <i class="bi bi-play-circle"></i> Vista Previa
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="download-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#downloadTab" type="button" role="tab">
+                                <i class="bi bi-download"></i> Descargas
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <!-- Contenido de tabs -->
+                    <div class="tab-content mt-3">
+                        <!-- Tab de Vista Previa -->
+                        <div class="tab-pane fade show active" id="previewTab" role="tabpanel">
+                            <video id="resultVideo" class="w-100" controls>
+                                <source src="" type="video/mp4">
+                                <!-- Los subtítulos se añadirán con JavaScript -->
+                            </video>
+                        </div>
+                        
+                        <!-- Tab de Descargas -->
+                        <div class="tab-pane fade" id="downloadTab" role="tabpanel">
+                            <!-- Se llenará con JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
 
     <!-- History Modal -->
     <div class="modal fade" id="historyModal">
