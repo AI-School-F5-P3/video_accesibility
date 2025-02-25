@@ -7,6 +7,7 @@ import logging
 import subprocess
 from pydub import AudioSegment
 from ..models.transcript import Transcript
+import whisper
 
 
 class SpeechProcessor:
