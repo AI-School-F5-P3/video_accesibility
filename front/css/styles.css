@@ -6,8 +6,8 @@
     --hover: rgb(4, 65, 80);        /* Color original */
     
     /* Estados del stepper */
-    --stepper-active: #2E7D32;      /* Verde más visible para la barra */
-    --stepper-done: #1B5E20;        /* Verde completado con buen contraste */
+    --stepper-active: #d8cb1a;      /* Verde más visible para la barra */
+    --stepper-done: #e0d42d;        /* Verde completado con buen contraste */
     
     /* Escala de grises accesible */
     --white: #FFFFFF;

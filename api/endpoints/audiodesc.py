@@ -22,6 +22,13 @@ async def get_audiodescription(
         audiodesc = await audio_processor.get_audiodescription(video_id)
         
         if download:
+            # Verificar si hay una ruta de audio
+            if not audiodesc.get("audio_path"):
+                raise HTTPException(
+                    status_code=404,
+                    detail="Audiodescripción no disponible para descarga"
+                )
+                
             audio_path = Path(audiodesc["audio_path"])
             if not audio_path.exists():
                 raise HTTPException(
@@ -29,10 +36,13 @@ async def get_audiodescription(
                     detail="Archivo de audio no encontrado"
                 )
             
+            # Determinar el tipo MIME según la extensión
+            media_type = "audio/wav" if audio_path.suffix == ".wav" else "audio/mpeg"
+            
             return FileResponse(
                 audio_path,
-                media_type="audio/wav",
-                filename=f"{video_id}_described.wav"
+                media_type=media_type,
+                filename=f"{video_id}_described{audio_path.suffix}"
             )
             
         return audiodesc
@@ -48,7 +58,7 @@ async def generate_audiodescription(
 ):
     """Generate audio description for a video"""
     try:
-        # Get video scenes and silence intervals
+        # Get video path
         video_path = await video_service.get_video_path(video_id)
         if not video_path:
             raise HTTPException(
@@ -57,12 +67,20 @@ async def generate_audiodescription(
             )
             
         # Start generation in background
-        background_tasks.add_task(
-            audio_processor.generate_description,
-            video_id=video_id,
-            video_path=video_path,
-            voice_type=voice_type
-        )
+        if background_tasks:
+            background_tasks.add_task(
+                audio_processor.generate_description,
+                video_id=video_id,
+                video_path=video_path,
+                voice_type=voice_type
+            )
+        else:
+            # Si no hay tareas en segundo plano, iniciar directamente
+            await audio_processor.generate_description(
+                video_id=video_id,
+                video_path=video_path,
+                voice_type=voice_type
+            )
 
         return {
             "message": "Generación de audiodescripción iniciada",
@@ -121,7 +139,7 @@ async def preview_descriptions(video_id: str):
         # Get first 5 descriptions
         preview_data = {
             "video_id": video_id,
-            "descriptions": audiodesc["descriptions"][:5]
+            "descriptions": audiodesc["descriptions"][:5] if audiodesc.get("descriptions") else []
         }
         
         return preview_data
