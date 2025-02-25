@@ -483,45 +483,29 @@ class AccessibilityPipeline:
         return str(script_path)
 
     def _merge_audio_description(self, video_path: str, audio_desc_path: str, srt_path: str) -> str:
-        """
-        Combina el video original con la audiodescripción y subtítulos con mejor calidad.
-        
-        Args:
-            video_path (str): Ruta al video original
-            audio_desc_path (str): Ruta al audio de la descripción
-            srt_path (str): Ruta al archivo SRT de subtítulos
-            
-        Returns:
-            Ruta al video final
-        """
         logger.info("Generando video final con audiodescripción y subtítulos...")
-        
+
         output_path = self.output_dir / "video_with_accessibility.mp4"
-        
-        # Nos aseguramos de que el directorio de salida exista
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Normalizar rutas para evitar problemas con espacios y caracteres especiales
+
         video_path_norm = str(Path(video_path).resolve())
         audio_desc_path_norm = str(Path(audio_desc_path).resolve())
         srt_path_norm = str(Path(srt_path).resolve())
         output_path_norm = str(output_path.resolve())
 
-        # Mezclar audio original con audiodescripción con mejor calidad de mezcla
-        temp_audio_path = self.temp_dir / "mixed_audio.aac"
+        temp_audio_path = self.output_dir / "mixed_audio.aac"
         temp_audio_path_norm = str(temp_audio_path.resolve())
 
-        # Extraer audio original primero
-        original_audio_path = self.temp_dir / "original_audio.aac"
+        original_audio_path = self.output_dir / "original_audio.aac"
         original_audio_path_norm = str(original_audio_path.resolve())
-        
+
         try:
-            # Extraer audio original y normalizar su volumen
+            # Extraer el audio original del video
             subprocess.run([
                 'ffmpeg', '-y',
                 '-i', video_path_norm,
                 '-vn',
-                '-af', 'loudnorm=I=-18:TP=-1.5:LRA=11', # Normalizar volumen
+                '-af', 'loudnorm=I=-18:TP=-1.5:LRA=11',
                 '-c:a', 'aac',
                 '-b:a', '192k',
                 original_audio_path_norm
@@ -529,65 +513,43 @@ class AccessibilityPipeline:
         except subprocess.CalledProcessError as e:
             logger.error(f"FFmpeg error extracting original audio: {e.stderr}")
             raise
-        
-        # Mezclar ambos audios con método avanzado para mejor integración
+
         try:
+            # Mezclar el audio original con la audiodescripción
             subprocess.run([
                 'ffmpeg', '-y',
-                '-i', original_audio_path_norm,
-                '-i', audio_desc_path_norm,
+                '-i', original_audio_path_norm,  # Audio original del video
+                '-i', audio_desc_path_norm,      # Audiodescripción
                 '-filter_complex', 
-                # Complejidad adicional: Bajar volumen de audio original durante descripciones
-                '[0:a]volume=1.0[original];'
-                '[1:a]volume=1.2[desc];'
-                '[original][desc]amix=inputs=2:duration=first:dropout_transition=0.5,'
-                'dynaudnorm=f=200:g=3:p=0.5',  # Normalización dinámica
+                '[0:a]volume=1.0[a1]; [1:a]volume=1.5[a2]; [a1][a2]amix=inputs=2:duration=first:dropout_transition=2[a]',
                 '-c:a', 'aac',
-                '-b:a', '256k',  # Mayor bitrate para mejor calidad
-                '-ar', '48000',  # Alta frecuencia de muestreo
+                '-b:a', '256k',
+                '-ar', '48000',
                 temp_audio_path_norm
             ], check=True, stderr=subprocess.PIPE, text=True)
         except subprocess.CalledProcessError as e:
             logger.error(f"FFmpeg error mixing audio: {e.stderr}")
-            # Intentar método alternativo si falla
-            try:
-                logger.info("Intentando método alternativo para mezclar audio...")
-                subprocess.run([
-                    'ffmpeg', '-y',
-                    '-i', original_audio_path_norm,
-                    '-i', audio_desc_path_norm,
-                    '-filter_complex', 
-                    '[0:a][1:a]amix=inputs=2:duration=first:weights=0.8 0.9',  # Mezcla con pesos
-                    '-c:a', 'aac',
-                    '-b:a', '192k',
-                    temp_audio_path_norm
-                ], check=True, stderr=subprocess.PIPE, text=True)
-            except subprocess.CalledProcessError as e2:
-                logger.error(f"FFmpeg error con método alternativo: {e2.stderr}")
-                raise
-        
-        # Configuración mejorada de subtítulos (según UNE 153010)
-        # Escapar la ruta del archivo de subtítulos para Windows
-        if os.name == 'nt':  # Windows
-            srt_path_escaped = srt_path_norm.replace('\\', '\\\\').replace(':', '\\:')
-        else:  # Linux/Mac
-            srt_path_escaped = srt_path_norm.replace(':', '\\:')
-        
-        # Añadir subtítulos al video final con estilo UNE
+            raise
+
+        if os.name == 'nt':
+            srt_path_escaped = srt_path_norm.replace('\\', '/').replace(':', '\\\\:')
+        else:
+            srt_path_escaped = srt_path_norm.replace(':', '\\\\:')
+
+        subtitle_style = (
+            'FontName=Arial,FontSize=24,PrimaryColour=&HFFFFFF,BackColour=&H80000000,'
+            'OutlineColour=&H000000,BorderStyle=3,Outline=1,Shadow=1,MarginV=20,Alignment=2'
+        )
+
         try:
-            subtitle_style = (
-                'FontName=Arial,FontSize=24,PrimaryColour=&HFFFFFF,BackColour=&H80000000,'
-                'OutlineColour=&H000000,BorderStyle=3,Outline=1,Shadow=1,MarginV=20,'
-                'Alignment=2'  # Centrado en la parte inferior
-            )
-            
+            # Generar el video final con la mezcla de audio y los subtítulos
             subprocess.run([
                 'ffmpeg', '-y',
                 '-i', video_path_norm,
-                '-i', temp_audio_path_norm,
+                '-i', temp_audio_path_norm,  # Audio mezclado
                 '-c:v', 'libx264',
-                '-preset', 'slow',  # Mejor calidad de codificación
-                '-crf', '18',  # Alta calidad visual
+                '-preset', 'slow',
+                '-crf', '18',
                 '-c:a', 'aac',
                 '-b:a', '192k',
                 '-vf', f"subtitles='{srt_path_escaped}':force_style='{subtitle_style}'",
@@ -598,9 +560,10 @@ class AccessibilityPipeline:
         except subprocess.CalledProcessError as e:
             logger.error(f"FFmpeg error adding subtitles: {e.stderr}")
             raise
-        
+
         return str(output_path)
-    
+
+
     def _prepare_output_files(self, 
                             video_path: str,
                             srt_path: str,
@@ -661,6 +624,34 @@ class AccessibilityPipeline:
         
         final_paths['metadata'] = str(metadata_path)
         return final_paths
+    def generate_from_script(self, script_path: str) -> dict:
+        """
+        Genera archivos de accesibilidad partiendo del guion completo.
+        """
+        logger.info(f"Generando archivos de accesibilidad desde el guion: {script_path}")
+        
+        if not os.path.isfile(script_path):
+            raise FileNotFoundError(f"El archivo de guion no existe: {script_path}")
+        
+        with open(script_path, 'r', encoding='utf-8') as f:
+            script_content = f.read()
+        
+        subtitles_data, descriptions_data = self._parse_script_content(script_content)
+        srt_path = self._generate_srt_from_parsed_data(subtitles_data)
+        audio_desc_path = self._generate_audio_from_descriptions(descriptions_data)
+        
+        video_path = self.source if os.path.isfile(self.source) else input("Introduce la ruta al video original: ")
+        if not os.path.isfile(video_path):
+            raise FileNotFoundError(f"El archivo de video no existe: {video_path}")
+        
+        final_video_path = self.merge_audio_description(video_path, audio_desc_path, srt_path)
+        
+        return {
+            'subtitles': srt_path,
+            'audio_description': audio_desc_path,
+            'final_video': final_video_path
+        }
+
 
 if __name__ == "__main__":
     print("\n===== SISTEMA DE GENERACIÓN DE ACCESIBILIDAD PARA VIDEOS =====")
