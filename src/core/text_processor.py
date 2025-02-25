@@ -41,6 +41,7 @@ class TextProcessor:
                 - No uses "se ve", "aparece" o "podemos ver"
                 - Comienza con "En esta escena"
                 - Prioriza: Qué, Quién, Cómo, Dónde
+                - Una ver reconoces el personaje no le vuelves describir y le llamas con su nombre
                 - Máximo 2 frases
                 - Evita redundancias
                 - No uses metáforas"""
