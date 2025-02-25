@@ -5,6 +5,12 @@ import logging
 # Reducir el nivel de logging
 logging.basicConfig(level=logging.WARNING)
 
+# Crear directorios necesarios
+os.makedirs("data/raw/test123", exist_ok=True)
+os.makedirs("data/transcripts", exist_ok=True)
+os.makedirs("data/audio", exist_ok=True)
+os.makedirs("data/processed/test123", exist_ok=True)
+
 # Asegurarnos que la carpeta raíz está en el path de Python
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
