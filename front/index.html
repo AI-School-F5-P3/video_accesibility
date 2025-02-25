@@ -222,7 +222,43 @@
 
                 <!-- Results Section -->
                 <div id="resultsSection" class="mt-4 d-none">
-                    <!-- [Contenido previo de resultados...] -->
+                    <div class="card">
+                        <div class="card-body">
+                            <h2 class="h5">Resultados</h2>
+                            
+                            <!-- Tabs para resultados -->
+                            <ul class="nav nav-tabs" id="resultTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="preview-tab" data-bs-toggle="tab" 
+                                            data-bs-target="#previewTab" type="button" role="tab">
+                                        <i class="bi bi-play-circle"></i> Vista Previa
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="download-tab" data-bs-toggle="tab" 
+                                            data-bs-target="#downloadTab" type="button" role="tab">
+                                        <i class="bi bi-download"></i> Descargas
+                                    </button>
+                                </li>
+                            </ul>
+                            
+                            <!-- Contenido de tabs -->
+                            <div class="tab-content mt-3">
+                                <!-- Tab de Vista Previa -->
+                                <div class="tab-pane fade show active" id="previewTab" role="tabpanel">
+                                    <video id="resultVideo" class="w-100" controls>
+                                        <source src="" type="video/mp4">
+                                        <!-- Los subtítulos se añadirán con JavaScript -->
+                                    </video>
+                                </div>
+                                
+                                <!-- Tab de Descargas -->
+                                <div class="tab-pane fade" id="downloadTab" role="tabpanel">
+                                    <!-- Se llenará con JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -353,13 +389,14 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
     <!-- Custom JS -->
     <script src="/static/js/main.js"></script>
-    <!-- React Dependencies -->
+    
+    <!-- scripts de React  -->
+    <!--
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-
-<!-- omponentes React -->
     <script type="text/babel" src="/static/js/components/VideoProcessingComponent.jsx"></script>
     <script type="text/babel" src="/static/js/video-processor.js"></script>
+    -->
 </body>
 </html>

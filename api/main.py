@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from src.config.settings import Settings
+from src.config.setup import Settings 
 from api.endpoints import video, subtitle, audiodesc
 
 settings = Settings()

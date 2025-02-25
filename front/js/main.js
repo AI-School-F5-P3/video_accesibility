@@ -2,7 +2,6 @@ console.log('Main.js cargado correctamente');
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM cargado, inicializando scripts...');
 
-document.addEventListener('DOMContentLoaded', function() {
     // Elements
     const videoUrlInput = document.getElementById('videoUrl');
     const clearUrlBtn = document.getElementById('clearUrl');
@@ -18,18 +17,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const estimatedTime = document.getElementById('estimatedTime');
     const resultsSection = document.getElementById('resultsSection');
 
+    console.log('Elementos encontrados:', {
+        videoUrlInput: !!videoUrlInput,
+        clearUrlBtn: !!clearUrlBtn,
+        fileInput: !!fileInput,
+        uploadArea: !!uploadArea,
+        processingStatus: !!processingStatus,
+        processBtn: !!processBtn
+    });
+
     let currentVideoId = null;
     let processingInterval = null;
 
     // Clear URL button
     clearUrlBtn?.addEventListener('click', function() {
         videoUrlInput.value = '';
+        console.log('URL limpiada');
     });
 
     // File upload handling
     fileInput.addEventListener('change', async function(e) {
+        console.log('Evento de cambio de archivo detectado');
         const file = e.target.files[0];
         if (file) {
+            console.log('Archivo seleccionado:', file.name, file.type, file.size);
             try {
                 if (!validateFile(file)) {
                     throw new Error('Archivo no válido. Solo se permiten videos de hasta 100MB.');
@@ -57,9 +68,11 @@ document.addEventListener('DOMContentLoaded', function() {
     uploadArea.addEventListener('drop', async function(e) {
         e.preventDefault();
         this.classList.remove('dragging');
+        console.log('Archivo arrastrado detectado');
         const file = e.dataTransfer.files[0];
         
         if (file && file.type.startsWith('video/')) {
+            console.log('Archivo de video arrastrado:', file.name);
             try {
                 if (!validateFile(file)) {
                     throw new Error('Archivo no válido. Solo se permiten videos de hasta 100MB.');
@@ -76,7 +89,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Process button click
     processBtn.addEventListener('click', async function() {
+        console.log('Botón procesar clickeado');
         try {
+            console.log('Estado actual - URL:', videoUrlInput?.value);
+            console.log('Estado actual - Archivo:', fileInput?.files[0]?.name || 'No hay archivo');
+            
             updateStep(3);
             showProcessingStatus();
             
@@ -85,31 +102,43 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Añadir video o URL
             if (fileInput.files.length > 0) {
+                console.log('Añadiendo archivo al formulario:', fileInput.files[0].name);
                 formData.append('video', fileInput.files[0]);
             } else if (videoUrlInput.value) {
+                console.log('Añadiendo URL al formulario:', videoUrlInput.value);
                 formData.append('youtube_url', videoUrlInput.value);
             } else {
                 throw new Error('Por favor, proporciona un archivo de video o una URL de YouTube');
             }
             
             // Añadir opciones
-            formData.append('generate_audiodesc', document.getElementById('audioDesc').checked);
-            formData.append('generate_subtitles', document.getElementById('subtitles').checked);
+            const audioDesc = document.getElementById('audioDesc');
+            const subtitles = document.getElementById('subtitles');
+            console.log('Opciones seleccionadas:', {
+                audiodesc: audioDesc?.checked,
+                subtitles: subtitles?.checked
+            });
+            
+            formData.append('generate_audiodesc', audioDesc?.checked || false);
+            formData.append('generate_subtitles', subtitles?.checked || false);
             formData.append('subtitle_format', 'srt'); // Valor por defecto
             formData.append('target_language', 'es'); // Valor por defecto
 
             // Enviar a la API correcta
+            console.log('Enviando petición a /api/v1/videos/process');
             const response = await fetch('/api/v1/videos/process', {
                 method: 'POST',
                 body: formData
             });
 
+            console.log('Respuesta recibida:', response.status);
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || 'Error al iniciar el procesamiento');
             }
             
             const data = await response.json();
+            console.log('Datos recibidos:', data);
             currentVideoId = data.video_id;
             startProcessingCheck();
             
@@ -121,6 +150,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Remove video button
     removeVideoBtn?.addEventListener('click', function() {
+        console.log('Botón eliminar video clickeado');
         resetUpload();
     });
 
@@ -128,16 +158,20 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateFile(file) {
         const maxSize = 100 * 1024 * 1024; // 100MB
         const validTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm', 'video/x-matroska'];
-        return file.size <= maxSize && (validTypes.includes(file.type) || file.type.startsWith('video/'));
+        const isValid = file.size <= maxSize && (validTypes.includes(file.type) || file.type.startsWith('video/'));
+        console.log('Validación de archivo:', isValid, file.type, file.size);
+        return isValid;
     }
 
     function showFilePreview(file) {
+        console.log('Mostrando vista previa del archivo');
         const url = URL.createObjectURL(file);
         videoPreview.src = url;
         uploadPreview.classList.remove('d-none');
     }
 
     function showProcessingStatus() {
+        console.log('Mostrando estado de procesamiento');
         processingStatus.classList.remove('d-none');
     }
 
@@ -154,6 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function resetUpload() {
+        console.log('Resetando upload');
         fileInput.value = '';
         videoPreview.src = '';
         uploadPreview.classList.add('d-none');
@@ -169,6 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateStep(step) {
+        console.log('Actualizando paso a:', step);
         document.querySelectorAll('.stepper-item').forEach((item, index) => {
             if (index + 1 < step) {
                 item.classList.add('completed');
@@ -183,9 +219,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function startProcessingCheck() {
+        console.log('Iniciando comprobación de procesamiento para ID:', currentVideoId);
         let progress = 0;
         processingInterval = setInterval(async () => {
             try {
+                console.log('Verificando estado del procesamiento...');
                 const response = await fetch(`/api/v1/videos/${currentVideoId}/status`);
                 if (!response.ok) {
                     throw new Error('Error al verificar el estado');
@@ -213,12 +251,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Check if processing is completed
                 if (status.status === 'completed') {
+                    console.log('Procesamiento completado');
                     clearInterval(processingInterval);
                     updateStep(4);
                     await handleProcessingResults(currentVideoId);
                 } 
                 // Check for errors
                 else if (status.status === 'error') {
+                    console.log('Error en procesamiento:', status.error);
                     clearInterval(processingInterval);
                     showError(status.error || 'Error en el procesamiento');
                 }
@@ -232,6 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Results handling
     async function handleProcessingResults(videoId) {
+        console.log('Obteniendo resultados para ID:', videoId);
         try {
             const response = await fetch(`/api/v1/videos/${videoId}/result`);
             if (!response.ok) {
@@ -243,11 +284,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Si hay un elemento de resultados, mostrarlo
             if (resultsSection) {
+                console.log('Mostrando sección de resultados');
                 resultsSection.classList.remove('d-none');
                 
                 // Si hay un elemento para descargas, actualizarlo
                 const downloadTab = document.getElementById('downloadTab');
                 if (downloadTab) {
+                    console.log('Actualizando pestaña de descargas');
                     let downloadContent = '<div class="list-group">';
                     
                     if (results.outputs && results.outputs.subtitles) {
@@ -280,6 +323,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Si hay un elemento de video para reproducir los resultados
                 const resultVideo = document.getElementById('resultVideo');
                 if (resultVideo && results.outputs && results.outputs.subtitles) {
+                    console.log('Actualizando video con subtítulos');
                     // Limpiar tracks existentes
                     while (resultVideo.firstChild) {
                         resultVideo.removeChild(resultVideo.firstChild);
@@ -295,6 +339,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 // Si no hay sección de resultados, mostrar un mensaje
+                console.log('Mostrando mensaje de éxito');
                 const successMessage = `
                     <div class="alert alert-success">
                         <h4>¡Procesamiento completado!</h4>
@@ -314,4 +359,4 @@ document.addEventListener('DOMContentLoaded', function() {
             showError('Error al cargar los resultados del procesamiento');
         }
     }
-});});
+});
