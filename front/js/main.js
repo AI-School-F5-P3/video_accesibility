@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusText = document.getElementById('statusText');
     const estimatedTime = document.getElementById('estimatedTime');
     const resultsSection = document.getElementById('resultsSection');
+    const noResultsMessage = document.getElementById('noResultsMessage');
 
     console.log('Elementos encontrados:', {
         videoUrlInput: !!videoUrlInput,
@@ -254,6 +255,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('Procesamiento completado');
                     clearInterval(processingInterval);
                     updateStep(4);
+                    // Actualizar mensaje a "Procesamiento completado"
+                    statusText.textContent = "Procesamiento completado";
+                    progressBar.style.width = "100%";
+                    estimatedTime.textContent = "";
                     await handleProcessingResults(currentVideoId);
                 } 
                 // Check for errors
@@ -282,10 +287,28 @@ document.addEventListener('DOMContentLoaded', function() {
             const results = await response.json();
             console.log('Processing results:', results);
             
+            // Actualizar mensaje y mostrar botón de reinicio
+            if (processingStatus) {
+                // Agregar botón para reiniciar análisis si no existe ya
+                if (!document.getElementById('resetAnalysisBtn')) {
+                    const resetButton = document.createElement('button');
+                    resetButton.id = 'resetAnalysisBtn';
+                    resetButton.className = 'btn btn-primary mt-3';
+                    resetButton.innerHTML = '<i class="bi bi-arrow-repeat"></i> Reiniciar análisis';
+                    resetButton.onclick = resetAnalysis;
+                    
+                    // Añadir el botón al contenedor
+                    processingStatus.querySelector('.card-body').appendChild(resetButton);
+                }
+            }
+            
             // Si hay un elemento de resultados, mostrarlo
             if (resultsSection) {
                 console.log('Mostrando sección de resultados');
                 resultsSection.classList.remove('d-none');
+                if (noResultsMessage) {
+                    noResultsMessage.classList.add('d-none');
+                }
                 
                 // Si hay un elemento para descargas, actualizarlo
                 const downloadTab = document.getElementById('downloadTab');
@@ -315,6 +338,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="mt-3">
                         <h6>Procesamiento completado</h6>
                         <p>ID del video: ${videoId}</p>
+                        <button class="btn btn-outline-primary" onclick="resetAnalysis()">
+                            <i class="bi bi-arrow-repeat"></i> Nuevo análisis
+                        </button>
                     </div>`;
                     
                     downloadTab.innerHTML = downloadContent;
@@ -349,6 +375,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             ${results.outputs && results.outputs.audio_description ? 
                             `<a href="/api/v1/audiodesc/${videoId}?download=true" class="btn btn-secondary ms-2">Descargar Audiodescripción</a>` 
                             : ''}
+                            <button class="btn btn-outline-primary ms-2" onclick="resetAnalysis()">
+                                <i class="bi bi-arrow-repeat"></i> Nuevo análisis
+                            </button>
                         </div>
                     </div>
                 `;
@@ -359,4 +388,57 @@ document.addEventListener('DOMContentLoaded', function() {
             showError('Error al cargar los resultados del procesamiento');
         }
     }
+    
+    // Función para reiniciar el análisis
+    window.resetAnalysis = function() {
+        console.log('Reiniciando análisis');
+        
+        // Restablecer formulario
+        if (fileInput) fileInput.value = '';
+        if (videoUrlInput) videoUrlInput.value = '';
+        if (uploadPreview) uploadPreview.classList.add('d-none');
+        if (videoPreview) videoPreview.src = '';
+        
+        // Ocultar estados anteriores
+        if (processingStatus) {
+            // Limpiar contenido y ocultar
+            processingStatus.innerHTML = `
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="h5">Estado del Procesamiento</h2>
+                        <div class="progress mb-3">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar"></div>
+                        </div>
+                        <p id="statusText" class="text-muted mb-1">Preparando procesamiento...</p>
+                        <p id="estimatedTime" class="small text-muted">Tiempo estimado: calculando...</p>
+                    </div>
+                </div>
+            `;
+            processingStatus.classList.add('d-none');
+        }
+        
+        // Ocultar resultados
+        if (resultsSection) {
+            resultsSection.classList.add('d-none');
+        }
+        
+        // Mostrar mensaje inicial
+        if (noResultsMessage) {
+            noResultsMessage.classList.remove('d-none');
+        }
+        
+        // Restablecer checkboxes
+        if (document.getElementById('audioDesc')) document.getElementById('audioDesc').checked = false;
+        if (document.getElementById('subtitles')) document.getElementById('subtitles').checked = false;
+        
+        // Actualizar stepper al paso 1
+        updateStep(1);
+        
+        // Limpiar estado de procesamiento
+        if (processingInterval) {
+            clearInterval(processingInterval);
+        }
+        currentVideoId = null;
+    };
 });
