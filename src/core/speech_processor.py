@@ -8,6 +8,7 @@ import subprocess
 from pydub import AudioSegment
 from ..models.transcript import Transcript
 import whisper
+import shutil
 
 
 class SpeechProcessor:
@@ -75,36 +76,84 @@ class SpeechProcessor:
             return []
     
     def detect_speech_silence(self, video_path: Path, min_silence_len: int = 3000) -> list[tuple[float, float]]:
+        temp_wav_path = None
         try:
+            # Verificar que el archivo existe y es accesible
+            if not video_path.exists():
+                logging.error(f"Video file does not exist: {video_path}")
+                return []
+                
+            # Verificar que el archivo tiene un tamaño válido
+            if video_path.stat().st_size == 0:
+                logging.error(f"Video file is empty: {video_path}")
+                return []
+                
             # Extract audio from video to WAV format
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_wav:
                 temp_wav_path = temp_wav.name
                 
-                extract_command = [
-                    'ffmpeg',
-                    '-i', str(video_path),
-                    '-ac', '1',  # Convert to mono
-                    '-ar', '16000',  # Set sample rate to 16kHz
-                    '-y',
-                    temp_wav_path
-                ]
+                try:
+                    # Primero verificar si el video tiene un stream de audio usando ffprobe
+                    probe_command = [
+                        'ffprobe',
+                        '-v', 'error',
+                        '-select_streams', 'a:0',
+                        '-show_entries', 'stream=codec_type',
+                        '-of', 'csv=p=0',
+                        str(video_path)
+                    ]
+                    
+                    result = subprocess.run(probe_command, capture_output=True, text=True)
+                    if result.returncode != 0 or not result.stdout.strip():
+                        logging.warning(f"No audio stream found in video: {video_path}")
+                        return []
+                        
+                    # Si hay un stream de audio, proceder con la extracción
+                    extract_command = [
+                        'ffmpeg',
+                        '-i', str(video_path),
+                        '-ac', '1',  # Convert to mono
+                        '-ar', '16000',  # Set sample rate to 16kHz
+                        '-y',
+                        temp_wav_path
+                    ]
+                    
+                    result = subprocess.run(extract_command, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        logging.error(f"Error extracting audio: {result.stderr}")
+                        return []
+                        
+                except Exception as e:
+                    logging.error(f"Error in ffmpeg call: {str(e)}")
+                    return []
                 
-                subprocess.run(extract_command, check=True, capture_output=True)
+                # Verificar que el archivo de salida existe y tiene tamaño
+                if not os.path.exists(temp_wav_path) or os.path.getsize(temp_wav_path) == 0:
+                    logging.error(f"Failed to extract audio to {temp_wav_path}")
+                    return []
                 
                 # Load audio for analysis
-                audio = AudioSegment.from_wav(temp_wav_path)
-                duration = len(audio)
+                try:
+                    audio = AudioSegment.from_wav(temp_wav_path)
+                    duration = len(audio)
+                except Exception as e:
+                    logging.error(f"Error loading audio with pydub: {str(e)}")
+                    return []
                 
                 # Transcribe with Whisper using more aggressive settings
-                result = self.whisper_model.transcribe(
-                    temp_wav_path,
-                    language="es",
-                    word_timestamps=True,
-                    condition_on_previous_text=True,
-                    temperature=0.4,
-                    no_speech_threshold=0.3,  # Make it more sensitive to detecting non-speech
-                    logprob_threshold=-1.0    # More strict speech detection
-                )
+                try:
+                    result = self.whisper_model.transcribe(
+                        temp_wav_path,
+                        language="es",
+                        word_timestamps=True,
+                        condition_on_previous_text=True,
+                        temperature=0.4,
+                        no_speech_threshold=0.3,  # Make it more sensitive to detecting non-speech
+                        logprob_threshold=-1.0    # More strict speech detection
+                    )
+                except Exception as e:
+                    logging.error(f"Error transcribing with whisper: {str(e)}")
+                    return []
                 
                 # Process segments to find non-speech gaps
                 non_speech_ranges = []
@@ -229,114 +278,174 @@ class SpeechProcessor:
                         if end - prev_point >= min_silence_len / 2:
                             volume_refined_ranges.append((prev_point, end))
                 
-                # Limpiar el archivo temporal
+                return volume_refined_ranges
+                
+        except Exception as e:
+            logging.error(f"Error detecting non-speech segments: {str(e)}")
+            return []
+        finally:
+            if temp_wav_path and os.path.exists(temp_wav_path):
                 try:
                     os.unlink(temp_wav_path)
                 except Exception as e:
                     logging.warning(f"Could not delete temporary file {temp_wav_path}: {str(e)}")
-                
-                return volume_refined_ranges
-            
-        except Exception as e:
-            logging.error(f"Error detecting non-speech segments: {str(e)}")
-            return []
 
     async def transcribe_video(self, video_path: Path) -> Transcript:
         """Transcribe video audio to text using Whisper"""
+        temp_wav_path = None
         try:
+            # Verificar que el archivo existe y es accesible
+            if not video_path.exists():
+                raise FileNotFoundError(f"Video file does not exist: {video_path}")
+                
+            # Verificar que el archivo tiene un tamaño válido
+            if video_path.stat().st_size == 0:
+                raise ValueError(f"Video file is empty: {video_path}")
+            
             # Extract audio to WAV
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_wav:
                 temp_wav_path = temp_wav.name
                 
-                extract_command = [
-                    'ffmpeg',
-                    '-i', str(video_path),
-                    '-ac', '1',
-                    '-ar', '16000',
-                    '-y',
-                    temp_wav_path
-                ]
+                # Primero verificar si el video tiene un stream de audio usando ffprobe
+                try:
+                    probe_command = [
+                        'ffprobe',
+                        '-v', 'error',
+                        '-select_streams', 'a:0',
+                        '-show_entries', 'stream=codec_type',
+                        '-of', 'csv=p=0',
+                        str(video_path)
+                    ]
+                    
+                    result = subprocess.run(probe_command, capture_output=True, text=True)
+                    logging.info(f"ffprobe result: {result.stdout.strip()}")
+                    
+                    if result.returncode != 0 or not result.stdout.strip():
+                        logging.warning(f"No audio stream found in video: {video_path}")
+                        # Crear un transcript vacío en caso de no haber audio
+                        transcript = Transcript()
+                        transcript.add_segment(0, 1000, "No se detectó audio en este video")
+                        return transcript
                 
-                subprocess.run(extract_command, check=True, capture_output=True)
+                    # Si hay un stream de audio, proceder con la extracción
+                    extract_command = [
+                        'ffmpeg',
+                        '-i', str(video_path),
+                        '-ac', '1',
+                        '-ar', '16000',
+                        '-y',
+                        temp_wav_path
+                    ]
+                    
+                    process = subprocess.run(extract_command, capture_output=True, text=True)
+                    
+                    if process.returncode != 0:
+                        logging.error(f"Error executing ffmpeg: {process.stderr}")
+                        raise RuntimeError(f"Failed to extract audio: {process.stderr}")
+                        
+                except subprocess.CalledProcessError as e:
+                    logging.error(f"ffmpeg error: {e.stderr if hasattr(e, 'stderr') else str(e)}")
+                    raise
+                except Exception as e:
+                    logging.error(f"Error extracting audio: {str(e)}")
+                    raise
+                
+                # Verificar que el archivo de salida existe y tiene tamaño
+                if not os.path.exists(temp_wav_path) or os.path.getsize(temp_wav_path) == 0:
+                    logging.error(f"Failed to extract audio to {temp_wav_path}")
+                    raise RuntimeError(f"Failed to extract audio from video")
                 
                 # Transcribe with Whisper
-                result = self.whisper_model.transcribe(
-                    temp_wav_path,
-                    language=self.settings.LANGUAGE_CODE[:2],  # Use first 2 chars (e.g., 'es' from 'es-ES')
-                    word_timestamps=True,
-                    condition_on_previous_text=True,
-                    temperature=0.2
-                )
-                
-                # Create Transcript object
-                transcript = Transcript()
-                
-                # Process segments
-                for segment in result["segments"]:
-                    start_ms = int(segment["start"] * 1000)
-                    end_ms = int(segment["end"] * 1000)
-                    text = segment["text"].strip()
+                try:
+                    result = self.whisper_model.transcribe(
+                        temp_wav_path,
+                        language=self.settings.LANGUAGE_CODE[:2],  # Use first 2 chars (e.g., 'es' from 'es-ES')
+                        word_timestamps=True,
+                        condition_on_previous_text=True,
+                        temperature=0.2
+                    )
                     
-                    if text:  # Only add non-empty segments
-                        transcript.add_segment(start_ms, end_ms, text)
-                
-                # Limpiar el archivo temporal
+                    # Create Transcript object
+                    transcript = Transcript()
+                    
+                    # Process segments
+                    for segment in result["segments"]:
+                        start_ms = int(segment["start"] * 1000)
+                        end_ms = int(segment["end"] * 1000)
+                        text = segment["text"].strip()
+                        
+                        if text:  # Only add non-empty segments
+                            transcript.add_segment(start_ms, end_ms, text)
+                    
+                    return transcript
+                except Exception as e:
+                    logging.error(f"Error in whisper transcription: {str(e)}")
+                    raise
+            
+        except Exception as e:
+            logging.error(f"Error transcribing video: {str(e)}")
+            # Crear un transcript mínimo para no fallar completamente
+            transcript = Transcript()
+            transcript.add_segment(0, 1000, f"Error al transcribir el video: {str(e)}")
+            return transcript
+        finally:
+            # Limpiar el archivo temporal
+            if temp_wav_path and os.path.exists(temp_wav_path):
                 try:
                     os.unlink(temp_wav_path)
                 except Exception as e:
                     logging.warning(f"Could not delete temporary file {temp_wav_path}: {str(e)}")
-                
-                return transcript
-            
-        except Exception as e:
-            logging.error(f"Error transcribing video: {str(e)}")
-            raise
 
     async def get_word_timestamps(self, video_path: Path) -> list[dict]:
         """Get precise word-level timestamps"""
+        temp_wav_path = None
         try:
             # Create temporary WAV file
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_wav:
                 temp_wav_path = temp_wav.name
                 
                 # Extract audio to WAV
-                extract_command = [
-                    'ffmpeg',
-                    '-i', str(video_path),
-                    '-ac', '1',
-                    '-ar', '16000',
-                    '-y',
-                    temp_wav_path
-                ]
-                
-                subprocess.run(extract_command, check=True, capture_output=True)
-                
-                # Transcribe with word timestamps
-                result = self.whisper_model.transcribe(
-                    temp_wav_path,
-                    language=self.settings.LANGUAGE_CODE[:2],
-                    word_timestamps=True
-                )
-                
-                # Extract word timestamps
-                word_times = []
-                for segment in result["segments"]:
-                    for word in segment.get("words", []):
-                        word_times.append({
-                            "word": word["word"],
-                            "start": int(word["start"] * 1000),
-                            "end": int(word["end"] * 1000),
-                            "probability": word.get("probability", 0)
-                        })
-                
-                # Limpiar el archivo temporal
+                try:
+                    extract_command = [
+                        'ffmpeg',
+                        '-i', str(video_path),
+                        '-ac', '1',
+                        '-ar', '16000',
+                        '-y',
+                        temp_wav_path
+                    ]
+                    
+                    subprocess.run(extract_command, check=True, capture_output=True)
+                    
+                    # Transcribe with word timestamps
+                    result = self.whisper_model.transcribe(
+                        temp_wav_path,
+                        language=self.settings.LANGUAGE_CODE[:2],
+                        word_timestamps=True
+                    )
+                    
+                    # Extract word timestamps
+                    word_times = []
+                    for segment in result["segments"]:
+                        for word in segment.get("words", []):
+                            word_times.append({
+                                "word": word["word"],
+                                "start": int(word["start"] * 1000),
+                                "end": int(word["end"] * 1000),
+                                "probability": word.get("probability", 0)
+                            })
+                    
+                    return word_times
+                except Exception as e:
+                    logging.error(f"Error processing word timestamps: {str(e)}")
+                    return []
+            
+        except Exception as e:
+            logging.error(f"Error getting word timestamps: {str(e)}")
+            return []
+        finally:
+            if temp_wav_path and os.path.exists(temp_wav_path):
                 try:
                     os.unlink(temp_wav_path)
                 except Exception as e:
                     logging.warning(f"Could not delete temporary file {temp_wav_path}: {str(e)}")
-                
-                return word_times
-            
-        except Exception as e:
-            logging.error(f"Error getting word timestamps: {str(e)}")
-            raise

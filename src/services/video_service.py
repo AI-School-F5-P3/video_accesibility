@@ -67,13 +67,43 @@ class VideoService:
             file_ext = self._get_extension(file.filename)
             video_path = video_dir / f"{video_id}{file_ext}"
             
-            # Guardar archivo en chunks para manejar archivos grandes
-            async with aiofiles.open(video_path, 'wb') as out_file:
+            # Asegurarnos de que el contenido del archivo está en la posición inicial
+            await file.seek(0)
+            
+            # Verificar que el archivo no esté vacío
+            first_chunk = await file.read(1024)
+            if not first_chunk:
+                raise ValueError("El archivo subido está vacío")
+            
+            # Guardar el archivo
+            with open(video_path, 'wb') as out_file:
+                # Escribir el primer chunk que ya leímos
+                out_file.write(first_chunk)
+                
+                # Leer y escribir el resto del archivo
                 while True:
                     chunk = await file.read(1024 * 1024)  # Leer en chunks de 1MB
                     if not chunk:
                         break
-                    await out_file.write(chunk)
+                    out_file.write(chunk)
+            
+            # Verificar que el archivo se guardó correctamente
+            if not video_path.exists() or video_path.stat().st_size == 0:
+                raise ValueError("Error al guardar el archivo: el archivo resultante está vacío")
+            
+            # Verificar que es un archivo de video válido
+            probe_command = [
+                'ffprobe',
+                '-v', 'error',
+                '-show_format',
+                '-show_streams',
+                str(video_path)
+            ]
+            
+            result = subprocess.run(probe_command, capture_output=True, text=True)
+            if result.returncode != 0:
+                logging.error(f"Error validando video: {result.stderr}")
+                raise ValueError("El archivo subido no es un video válido")
             
             # Actualizar estado
             self._processing_status[video_id] = {
