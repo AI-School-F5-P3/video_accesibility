@@ -35,89 +35,35 @@ async def process_video(
 ):
     """Process video with specified options"""
     try:
-        # ID fijo para pruebas
-        video_id = "test123"
+        # Generar un ID único para cada solicitud
+        video_id = str(uuid.uuid4())
         
-        # MODO DE PRUEBA: Usar archivo preexistente o crearlo si no existe
+        # Verificar que se proporcionó un video o URL
+        if not video and not youtube_url:
+            raise HTTPException(
+                status_code=400,
+                detail="Debe proporcionar un archivo de video o una URL de YouTube"
+            )
+            
         video_dir = Path(f"data/raw/{video_id}")
         video_dir.mkdir(parents=True, exist_ok=True)
-        video_path = video_dir / f"{video_id}.mp4"
         
-        # Si hay video o URL, procesarlos (sobrescribir archivo existente)
-        if video or youtube_url:
-            # Eliminar archivo existente si lo hay
-            if video_path.exists():
-                video_path.unlink()
-                
-            if video:
-                logging.info(f"Procesando video cargado: {video.filename}")
-                # Guardar archivo subido usando el servicio
-                video_path = await video_service.save_uploaded_video(video_id, video)
-                logging.info(f"Video guardado en: {video_path}")
-            elif youtube_url:
-                logging.info(f"Procesando video de YouTube: {youtube_url}")
-                if youtube_url.lower() == "test":
-                    # Modo de prueba con URL ficticia
-                    logging.info("URL de prueba 'test' detectada, usando modo simulado")
-                    is_test_mode = True
-                    with open(video_path, "wb") as f:
-                        f.write(b"Test file")
-                else:
-                    # Descargar video real
-                    try:
-                        video_path = await video_service.download_youtube_video(video_id, youtube_url)
-                        logging.info(f"Video descargado en: {video_path}")
-                    except Exception as e:
-                        logging.error(f"Error descargando video: {e}")
-                        # Si falla, creamos un archivo de prueba
-                        with open(video_path, "wb") as f:
-                            f.write(b"Test file")
-                        is_test_mode = True
-        else:
-            # Verificar que se proporcionó un video o URL
-            if not video_path.exists():
-                raise HTTPException(
-                    status_code=400,
-                    detail="Debe proporcionar un archivo de video o una URL de YouTube"
-                )
-        
-        # Si el archivo no existe después de intentar crearlo, crear uno de prueba
-        if not video_path.exists():
-            logging.info(f"Creando archivo de prueba en: {video_path}")
-            # Crear archivo simple
-            with open(video_path, "wb") as f:
-                f.write(b"Test file")
-        
-        logging.info(f"Usando video: {video_path}")
-        
+        if video:
+            logging.info(f"Procesando video cargado: {video.filename}")
+            # Guardar archivo subido usando el servicio
+            video_path = await video_service.save_uploaded_video(video_id, video)
+            logging.info(f"Video guardado en: {video_path}")
+        elif youtube_url:
+            logging.info(f"Procesando video de YouTube: {youtube_url}")
+            # Descargar video 
+            video_path = await video_service.download_youtube_video(video_id, youtube_url)
+            logging.info(f"Video descargado en: {video_path}")
+            
         # Crear directorios para resultados
         os.makedirs("data/transcripts", exist_ok=True)
         os.makedirs("data/audio", exist_ok=True)
         
-        # MODO SIMULADO: Si es archivo de prueba vacío, crear resultados directamente
-        is_test_file = video_path.stat().st_size < 1000  # Archivo muy pequeño
-        
-        if is_test_file:
-            logging.info("Usando modo simulado con archivos predefinidos")
-            
-            # Crear subtítulos simulados
-            if generate_subtitles:
-                subtitle_path = Path(f"data/transcripts/{video_id}_srt.srt")
-                with open(subtitle_path, "w") as f:
-                    f.write("1\n00:00:01,000 --> 00:00:05,000\nSubtítulos de prueba\n\n")
-                    f.write("2\n00:00:06,000 --> 00:00:10,000\nGenerados para test123\n\n")
-            
-            # Crear audiodescripción simulada
-            if generate_audiodesc:
-                audio_path = Path(f"data/audio/{video_id}_described.wav")
-                audio_path.touch()
-            
-            return {
-                "video_id": video_id,
-                "message": "Procesamiento simulado completado"
-            }
-        
-        # MODO REAL: Procesar archivo real
+        # Iniciar procesamiento en segundo plano
         if generate_subtitles and subtitle_service:
             logging.info(f"Generando subtítulos para el video {video_id}")
             background_tasks.add_task(
@@ -211,6 +157,11 @@ async def get_processing_result(video_id: str):
     try:
         # Verificar si existe el archivo de video
         video_path = await video_service.get_video_path(video_id)
+        if not video_path:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Video no encontrado: {video_id}"
+            )
         
         # Crear objeto de resultados
         outputs = {}
@@ -225,23 +176,15 @@ async def get_processing_result(video_id: str):
                 else:
                     # Intentar obtener datos
                     subtitle_result = await subtitle_service.get_subtitles(video_id, "srt")
-                    if subtitle_result and subtitle_result.get("path") and Path(subtitle_result.get("path")).exists():
+                    if subtitle_result and subtitle_result.get("path"):
                         outputs["subtitles"] = f"/api/v1/subtitles/{video_id}?download=true"
             except Exception as e:
                 logging.warning(f"Error getting subtitles: {str(e)}")
-                # Crear subtítulos de prueba si es test123
-                if video_id == "test123":
-                    subtitle_path = Path(f"data/transcripts/{video_id}_srt.srt")
-                    subtitle_path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(subtitle_path, "w") as f:
-                        f.write("1\n00:00:01,000 --> 00:00:05,000\nSubtítulo de prueba\n\n")
-                        f.write("2\n00:00:06,000 --> 00:00:10,000\nGenerado para test123\n\n")
-                    outputs["subtitles"] = f"/api/v1/subtitles/{video_id}?download=true"
         
         # Verificar resultados de audiodescripción
         try:
             # Verificar primero si existe el archivo
-            audio_path = Path(f"data/audio/{video_id}_described.wav")
+            audio_path = Path(f"data/audio/{video_id}_described.mp3")
             if audio_path.exists():
                 outputs["audio_description"] = f"/api/v1/audiodesc/{video_id}?download=true"
             else:
@@ -253,28 +196,6 @@ async def get_processing_result(video_id: str):
                         outputs["audio_description"] = f"/api/v1/audiodesc/{video_id}?download=true"
         except Exception as e:
             logging.warning(f"Error getting audio description: {str(e)}")
-            # Crear audiodescripción de prueba si es test123
-            if video_id == "test123":
-                audio_path = Path(f"data/audio/{video_id}_described.wav")
-                audio_path.parent.mkdir(parents=True, exist_ok=True)
-                audio_path.touch()
-                outputs["audio_description"] = f"/api/v1/audiodesc/{video_id}?download=true"
-        
-        # Si no hay resultados pero es test123, crear resultados simulados
-        if not outputs and video_id == "test123":
-            # Crear subtítulos y audiodescripción de prueba
-            subtitle_path = Path(f"data/transcripts/{video_id}_srt.srt")
-            subtitle_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(subtitle_path, "w") as f:
-                f.write("1\n00:00:01,000 --> 00:00:05,000\nSubtítulo de prueba\n\n")
-                f.write("2\n00:00:06,000 --> 00:00:10,000\nGenerado para test123\n\n")
-                
-            audio_path = Path(f"data/audio/{video_id}_described.wav")
-            audio_path.parent.mkdir(parents=True, exist_ok=True)
-            audio_path.touch()
-            
-            outputs["subtitles"] = f"/api/v1/subtitles/{video_id}?download=true"
-            outputs["audio_description"] = f"/api/v1/audiodesc/{video_id}?download=true"
         
         # Verificar estado si no hay resultados
         if not outputs:
@@ -289,6 +210,14 @@ async def get_processing_result(video_id: str):
                     "video_id": video_id,
                     "message": "Procesamiento en progreso"
                 }
+            
+            # Si no hay resultados ni procesamiento en curso
+            if audiodesc_status.get("status") == "not_found" and subtitle_status.get("status") == "not_found":
+                return {
+                    "status": "not_found",
+                    "video_id": video_id,
+                    "message": "No se encontraron resultados para este video"
+                }
         
         return {
             "status": "completed",
@@ -298,31 +227,6 @@ async def get_processing_result(video_id: str):
         
     except Exception as e:
         logging.error(f"Error en get_processing_result: {str(e)}")
-        
-        # Para test123, siempre devolver resultados simulados
-        if video_id == "test123":
-            # Crear directorios y archivos simulados
-            os.makedirs(f"data/transcripts", exist_ok=True)
-            os.makedirs(f"data/audio", exist_ok=True)
-            
-            # Crear archivos simulados
-            subtitle_path = Path(f"data/transcripts/{video_id}_srt.srt")
-            with open(subtitle_path, "w") as f:
-                f.write("1\n00:00:01,000 --> 00:00:05,000\nSubtítulo de prueba\n\n")
-                f.write("2\n00:00:06,000 --> 00:00:10,000\nGenerado para test123\n\n")
-                
-            audio_path = Path(f"data/audio/{video_id}_described.wav")
-            audio_path.touch()
-            
-            return {
-                "status": "completed",
-                "video_id": video_id,
-                "outputs": {
-                    "subtitles": f"/api/v1/subtitles/{video_id}?download=true",
-                    "audio_description": f"/api/v1/audiodesc/{video_id}?download=true"
-                }
-            }
-            
         raise HTTPException(status_code=404, detail=str(e))
 
 @router.delete("/{video_id}")

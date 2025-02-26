@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
 from fastapi.responses import FileResponse
 from typing import Optional
 from src.services.subtitle_service import SubtitleService
@@ -18,31 +18,7 @@ async def get_subtitles(
 ):
     """Get subtitles for a video"""
     try:
-        try:
-            subtitle_data = await subtitle_service.get_subtitles(video_id, format)
-        except Exception as e:
-            # Para modo de prueba, crear subtítulos si no existen
-            if video_id == "test123":
-                logging.info("Generando subtítulos de prueba para test123")
-                subtitle_path = Path(f"data/transcripts/{video_id}_srt.srt")
-                subtitle_path.parent.mkdir(parents=True, exist_ok=True)
-                
-                if not subtitle_path.exists():
-                    with open(subtitle_path, "w") as f:
-                        f.write("1\n00:00:01,000 --> 00:00:05,000\nSubtítulos de prueba\n\n")
-                        f.write("2\n00:00:06,000 --> 00:00:10,000\nGenerados para test123\n\n")
-                
-                subtitle_data = {
-                    "video_id": video_id,
-                    "format": "srt",
-                    "path": str(subtitle_path),
-                    "segments": [
-                        {"id": "1", "start": 1000, "end": 5000, "text": "Subtítulos de prueba"},
-                        {"id": "2", "start": 6000, "end": 10000, "text": "Generados para test123"}
-                    ]
-                }
-            else:
-                raise e
+        subtitle_data = await subtitle_service.get_subtitles(video_id, format)
         
         if download:
             subtitle_path = Path(subtitle_data["path"])

@@ -98,14 +98,6 @@ class VideoService:
     async def download_youtube_video(self, video_id: str, youtube_url: str) -> Path:
         """Descarga un video de YouTube y devuelve la ruta"""
         try:
-            # Modo de prueba para "test"
-            if youtube_url.lower() == "test":
-                video_dir = self.video_dir / video_id
-                video_dir.mkdir(parents=True, exist_ok=True)
-                video_path = video_dir / f"{video_id}.mp4"
-                video_path.touch()  # Crear archivo vacío
-                return video_path
-                
             # Crear directorio si no existe
             video_dir = self.video_dir / video_id
             video_dir.mkdir(parents=True, exist_ok=True)
@@ -162,25 +154,13 @@ class VideoService:
                 
         except Exception as e:
             logging.error(f"Error downloading YouTube video: {str(e)}")
-            
-            # Crear un archivo de prueba en caso de error
-            video_dir = self.video_dir / video_id
-            video_dir.mkdir(parents=True, exist_ok=True)
-            video_path = video_dir / f"{video_id}.mp4"
-            
-            if not video_path.exists() or video_path.stat().st_size == 0:
-                # Crear un archivo mínimo para pruebas
-                with open(video_path, "wb") as f:
-                    f.write(b"Test file")
-            
             self._processing_status[video_id] = {
                 "status": "error",
                 "progress": 0,
-                "current_step": "Error al descargar video, usando archivo de prueba",
+                "current_step": "Error al descargar video",
                 "error": str(e)
             }
-            
-            return video_path
+            raise
 
     async def analyze_video(self, video_id: str, options: Dict = None) -> Dict:
         """Process video with specified options"""
@@ -322,16 +302,6 @@ class VideoService:
                 files = list(self.video_dir.glob(f"{video_id}*{ext}"))
                 if files:
                     return files[0]
-            
-            # Si aún no encuentra nada y estamos en modo de prueba, simular archivo
-            if video_id == "test123":
-                logging.warning(f"Creating test file for video_id {video_id}")
-                test_file = self.video_dir / f"{video_id}.mp4"
-                test_file.parent.mkdir(parents=True, exist_ok=True)
-                # Crear un archivo vacío si no existe
-                if not test_file.exists():
-                    test_file.touch()
-                return test_file
             
             return None
             

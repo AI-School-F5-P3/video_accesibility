@@ -67,16 +67,16 @@ class SubtitleService:
                     for i, seg in enumerate(transcript.segments):
                         segments.append({
                             "id": str(i+1),
-                            "start": seg["start"],  # CORREGIDO
-                            "end": seg["end"],      # CORREGIDO
+                            "start": seg["start"], 
+                            "end": seg["end"],     
                             "text": seg["text"]
                         })
                 else:
                     for i, seg in enumerate(transcript.segments):
                         segments.append({
                             "id": str(i+1),
-                            "start": seg.start,     # CORREGIDO
-                            "end": seg.end,         # CORREGIDO
+                            "start": seg.start,    
+                            "end": seg.end,        
                             "text": seg.text
                         })
             
@@ -185,4 +185,97 @@ class SubtitleService:
             
         except Exception as e:
             logging.error(f"Error deleting subtitles: {str(e)}")
+            raise
+            
+    async def update_subtitle(self, video_id: str, segment_id: str, updates: Dict):
+        """Actualizar un segmento de subtítulos específico"""
+        try:
+            subtitle_data = await self.get_subtitles(video_id, "srt")
+            segments = subtitle_data["segments"]
+            
+            # Buscar el segmento por ID
+            updated_segment = None
+            for segment in segments:
+                if segment["id"] == segment_id:
+                    # Aplicar actualizaciones
+                    for key, value in updates.items():
+                        segment[key] = value
+                    updated_segment = segment
+                    break
+            
+            if not updated_segment:
+                raise ValueError(f"Segment with ID {segment_id} not found")
+            
+            # Reconstruir el archivo SRT
+            subtitle_path = Path(subtitle_data["path"])
+            srt_content = self._segments_to_srt(segments)
+            
+            with open(subtitle_path, "w", encoding="utf-8") as f:
+                f.write(srt_content)
+            
+            # Actualizar caché
+            subtitle_data["segments"] = segments
+            self._subtitle_cache[f"{video_id}_srt"] = subtitle_data
+            
+            return updated_segment
+            
+        except Exception as e:
+            logging.error(f"Error updating subtitle: {str(e)}")
+            raise
+    
+    def _segments_to_srt(self, segments: List[Dict]) -> str:
+        """Convertir segmentos a formato SRT"""
+        srt_lines = []
+        
+        for segment in segments:
+            # Formatear tiempos
+            start_time = self._format_time(segment["start"])
+            end_time = self._format_time(segment["end"])
+            
+            # Añadir bloque
+            srt_lines.append(segment["id"])
+            srt_lines.append(f"{start_time} --> {end_time}")
+            srt_lines.append(segment["text"])
+            srt_lines.append("")  # Línea vacía entre bloques
+        
+        return "\n".join(srt_lines)
+    
+    def _format_time(self, ms: int) -> str:
+        """Convertir milisegundos a formato de tiempo SRT (HH:MM:SS,mmm)"""
+        seconds, ms = divmod(ms, 1000)
+        minutes, seconds = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d},{ms:03d}"
+    
+    async def realign_subtitles(self, video_id: str, offset_ms: int):
+        """Realinear subtítulos aplicando un desplazamiento en milisegundos"""
+        try:
+            subtitle_data = await self.get_subtitles(video_id, "srt")
+            segments = subtitle_data["segments"]
+            
+            # Aplicar offset a todos los segmentos
+            for segment in segments:
+                segment["start"] = max(0, segment["start"] + offset_ms)
+                segment["end"] = max(0, segment["end"] + offset_ms)
+            
+            # Reconstruir el archivo SRT
+            subtitle_path = Path(subtitle_data["path"])
+            srt_content = self._segments_to_srt(segments)
+            
+            with open(subtitle_path, "w", encoding="utf-8") as f:
+                f.write(srt_content)
+            
+            # Actualizar caché
+            subtitle_data["segments"] = segments
+            self._subtitle_cache[f"{video_id}_srt"] = subtitle_data
+            
+            return {
+                "video_id": video_id,
+                "segments_updated": len(segments),
+                "offset_ms": offset_ms
+            }
+            
+        except Exception as e:
+            logging.error(f"Error realigning subtitles: {str(e)}")
             raise

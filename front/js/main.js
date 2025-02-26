@@ -174,17 +174,20 @@ document.addEventListener('DOMContentLoaded', function() {
     function showProcessingStatus() {
         console.log('Mostrando estado de procesamiento');
         processingStatus.classList.remove('d-none');
+        progressBar.style.width = "0%";
+        statusText.textContent = "Inicializando procesamiento...";
+        estimatedTime.textContent = "Tiempo estimado: calculando...";
     }
 
     function showError(message) {
         console.error('Error:', message);
-        const alert = `
+        const alertHTML = `
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `;
-        processingStatus.innerHTML = alert;
+        processingStatus.innerHTML = alertHTML;
         processingStatus.classList.remove('d-none');
     }
 
@@ -196,6 +199,9 @@ document.addEventListener('DOMContentLoaded', function() {
         processingStatus.classList.add('d-none');
         if (resultsSection) {
             resultsSection.classList.add('d-none');
+        }
+        if (noResultsMessage) {
+            noResultsMessage.classList.remove('d-none');
         }
         currentVideoId = null;
         if (processingInterval) {
@@ -318,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     if (results.outputs && results.outputs.subtitles) {
                         downloadContent += `
-                            <a href="/api/v1/subtitles/${videoId}?download=true" class="list-group-item list-group-item-action">
+                            <a href="${results.outputs.subtitles}" class="list-group-item list-group-item-action">
                                 <i class="bi bi-card-text"></i> Subtítulos
                                 <span class="badge bg-info float-end">SRT</span>
                             </a>
@@ -327,9 +333,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     if (results.outputs && results.outputs.audio_description) {
                         downloadContent += `
-                            <a href="/api/v1/audiodesc/${videoId}?download=true" class="list-group-item list-group-item-action">
+                            <a href="${results.outputs.audio_description}" class="list-group-item list-group-item-action">
                                 <i class="bi bi-file-earmark-music"></i> Audiodescripción
-                                <span class="badge bg-success float-end">WAV</span>
+                                <span class="badge bg-success float-end">MP3</span>
                             </a>
                         `;
                     }
@@ -355,13 +361,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         resultVideo.removeChild(resultVideo.firstChild);
                     }
                     
+                    // Crear un source para el video actual
+                    const source = document.createElement('source');
+                    source.src = URL.createObjectURL(fileInput.files[0]);
+                    source.type = fileInput.files[0].type;
+                    resultVideo.appendChild(source);
+                    
                     // Añadir subtítulos
                     const track = document.createElement('track');
                     track.kind = 'subtitles';
                     track.label = 'Español';
                     track.srclang = 'es';
-                    track.src = `/api/v1/subtitles/${videoId}?download=true`;
+                    track.src = results.outputs.subtitles;
+                    track.default = true;
                     resultVideo.appendChild(track);
+                    
+                    // Cargar el video
+                    resultVideo.load();
                 }
             } else {
                 // Si no hay sección de resultados, mostrar un mensaje
@@ -371,9 +387,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         <h4>¡Procesamiento completado!</h4>
                         <p>El video ha sido procesado correctamente.</p>
                         <div class="mt-2">
-                            <a href="/api/v1/subtitles/${videoId}?download=true" class="btn btn-primary">Descargar Subtítulos</a>
+                            ${results.outputs && results.outputs.subtitles ? 
+                            `<a href="${results.outputs.subtitles}" class="btn btn-primary">Descargar Subtítulos</a>` 
+                            : ''}
                             ${results.outputs && results.outputs.audio_description ? 
-                            `<a href="/api/v1/audiodesc/${videoId}?download=true" class="btn btn-secondary ms-2">Descargar Audiodescripción</a>` 
+                            `<a href="${results.outputs.audio_description}" class="btn btn-secondary ms-2">Descargar Audiodescripción</a>` 
                             : ''}
                             <button class="btn btn-outline-primary ms-2" onclick="resetAnalysis()">
                                 <i class="bi bi-arrow-repeat"></i> Nuevo análisis
