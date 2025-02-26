@@ -2,7 +2,7 @@ console.log('Main.js cargado correctamente');
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM cargado, inicializando scripts...');
 
-    // Elements
+    // Elements - usando let en lugar de const para los elementos que se reasignan
     const videoUrlInput = document.getElementById('videoUrl');
     const clearUrlBtn = document.getElementById('clearUrl');
     const fileInput = document.getElementById('videoFile');
@@ -12,11 +12,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const videoPreview = document.getElementById('videoPreview');
     const removeVideoBtn = document.getElementById('removeVideo');
     const processBtn = document.getElementById('processBtn');
-    const progressBar = document.querySelector('.progress-bar');
-    const statusText = document.getElementById('statusText');
-    const estimatedTime = document.getElementById('estimatedTime');
+    let progressBar = document.querySelector('.progress-bar');
+    let statusText = document.getElementById('statusText');
+    let estimatedTime = document.getElementById('estimatedTime');
     const resultsSection = document.getElementById('resultsSection');
     const noResultsMessage = document.getElementById('noResultsMessage');
+    const completionMessage = document.getElementById('completionMessage');
 
     console.log('Elementos encontrados:', {
         videoUrlInput: !!videoUrlInput,
@@ -94,6 +95,11 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             console.log('Estado actual - URL:', videoUrlInput?.value);
             console.log('Estado actual - Archivo:', fileInput?.files[0]?.name || 'No hay archivo');
+            
+            // Ocultar mensaje de completado si estaba visible
+            if (completionMessage) {
+                completionMessage.classList.add('d-none');
+            }
             
             updateStep(3);
             showProcessingStatus();
@@ -174,17 +180,53 @@ document.addEventListener('DOMContentLoaded', function() {
     function showProcessingStatus() {
         console.log('Mostrando estado de procesamiento');
         processingStatus.classList.remove('d-none');
-        progressBar.style.width = "0%";
-        statusText.textContent = "Inicializando procesamiento...";
-        estimatedTime.textContent = "Tiempo estimado: calculando...";
+        // Asegurarse de que no haya mensajes de error previos
+        processingStatus.innerHTML = `
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h5">Estado del Procesamiento</h2>
+                    <p id="statusText" class="text-muted mb-1">Preparando procesamiento...</p>
+                    
+                    <!-- Mensaje de paciencia -->
+                    <p class="text-info mb-3">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        <small>Ten paciencia, el proceso puede durar unos minutos</small>
+                    </p>
+                    
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <p id="estimatedTime" class="small text-muted">Tiempo estimado: calculando...</p>
+                </div>
+            </div>
+        `;
+        
+        // Volver a obtener referencias a los elementos después de recrearlos
+        statusText = document.getElementById('statusText');
+        estimatedTime = document.getElementById('estimatedTime');
+        progressBar = document.querySelector('.progress-bar');
     }
 
     function showError(message) {
         console.error('Error:', message);
+        
+        // Ocultar mensaje de completado si estaba visible
+        if (completionMessage) {
+            completionMessage.classList.add('d-none');
+        }
+        
         const alertHTML = `
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <div class="card">
+                <div class="card-body">
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        ${message}
+                    </div>
+                    <button class="btn btn-outline-primary" onclick="resetAnalysis()">
+                        <i class="bi bi-arrow-repeat"></i> Intentar de nuevo
+                    </button>
+                </div>
             </div>
         `;
         processingStatus.innerHTML = alertHTML;
@@ -197,6 +239,12 @@ document.addEventListener('DOMContentLoaded', function() {
         videoPreview.src = '';
         uploadPreview.classList.add('d-none');
         processingStatus.classList.add('d-none');
+        
+        // Ocultar mensaje de completado
+        if (completionMessage) {
+            completionMessage.classList.add('d-none');
+        }
+        
         if (resultsSection) {
             resultsSection.classList.add('d-none');
         }
@@ -261,10 +309,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('Procesamiento completado');
                     clearInterval(processingInterval);
                     updateStep(4);
+                    
                     // Actualizar mensaje a "Procesamiento completado"
                     statusText.textContent = "Procesamiento completado";
                     progressBar.style.width = "100%";
                     estimatedTime.textContent = "";
+                    
+                    // Mostrar mensaje de completado
+                    if (completionMessage) {
+                        completionMessage.classList.remove('d-none');
+                    }
+                    
                     await handleProcessingResults(currentVideoId);
                 } 
                 // Check for errors
@@ -352,33 +407,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     downloadTab.innerHTML = downloadContent;
                 }
                 
-                // Si hay un elemento de video para reproducir los resultados
-                const resultVideo = document.getElementById('resultVideo');
-                if (resultVideo && results.outputs && results.outputs.subtitles) {
-                    console.log('Actualizando video con subtítulos');
-                    // Limpiar tracks existentes
-                    while (resultVideo.firstChild) {
-                        resultVideo.removeChild(resultVideo.firstChild);
-                    }
-                    
-                    // Crear un source para el video actual
-                    const source = document.createElement('source');
-                    source.src = URL.createObjectURL(fileInput.files[0]);
-                    source.type = fileInput.files[0].type;
-                    resultVideo.appendChild(source);
-                    
-                    // Añadir subtítulos
-                    const track = document.createElement('track');
-                    track.kind = 'subtitles';
-                    track.label = 'Español';
-                    track.srclang = 'es';
-                    track.src = results.outputs.subtitles;
-                    track.default = true;
-                    resultVideo.appendChild(track);
-                    
-                    // Cargar el video
-                    resultVideo.load();
-                }
+                // No necesitamos actualizar la vista previa ya que ahora muestra "Próximamente"
+                console.log('Vista previa desactivada temporalmente');
             } else {
                 // Si no hay sección de resultados, mostrar un mensaje
                 console.log('Mostrando mensaje de éxito');
@@ -417,6 +447,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (uploadPreview) uploadPreview.classList.add('d-none');
         if (videoPreview) videoPreview.src = '';
         
+        // Ocultar mensaje de completado
+        if (completionMessage) {
+            completionMessage.classList.add('d-none');
+        }
+        
         // Ocultar estados anteriores
         if (processingStatus) {
             // Limpiar contenido y ocultar
@@ -424,11 +459,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="card">
                     <div class="card-body">
                         <h2 class="h5">Estado del Procesamiento</h2>
+                        <p id="statusText" class="text-muted mb-1">Preparando procesamiento...</p>
+                        
+                        <!-- Mensaje de paciencia -->
+                        <p class="text-info mb-3">
+                            <i class="bi bi-info-circle-fill me-1"></i>
+                            <small>Ten paciencia, el proceso puede durar unos minutos</small>
+                        </p>
+                        
                         <div class="progress mb-3">
                             <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                                 role="progressbar"></div>
+                                 role="progressbar" style="width: 0%"></div>
                         </div>
-                        <p id="statusText" class="text-muted mb-1">Preparando procesamiento...</p>
                         <p id="estimatedTime" class="small text-muted">Tiempo estimado: calculando...</p>
                     </div>
                 </div>

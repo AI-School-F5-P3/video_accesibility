@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -12,9 +11,9 @@
 </head>
 <body>
     <!-- Skip link para navegación por teclado -->
-<a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark" role="navigation" aria-label="Navegación principal">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark" role="navigation" aria-label="Navegación principal">
         <div class="container">
             <a class="navbar-brand" href="#">MIRESSE</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -62,6 +61,29 @@
                 <div class="step-name">Resultados</div>
             </div>
         </nav>
+
+        <!-- Processing Status (Ahora justo debajo del stepper) -->
+        <div id="processingStatus" class="mb-4 d-none">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h5">Estado del Procesamiento</h2>
+                    <p id="statusText" class="text-muted mb-1">Preparando procesamiento...</p>
+                    
+                    <!-- Mensaje de paciencia -->
+                    <p class="text-info mb-3">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        <small>Ten paciencia, el proceso puede durar unos minutos</small>
+                    </p>
+                    
+                    <!-- Barra de progreso movida debajo del estado -->
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                            role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <p id="estimatedTime" class="small text-muted">Tiempo estimado: calculando...</p>
+                </div>
+            </div>
+        </div>
 
         <!-- Panel de Entrada y Configuración -->
         <div class="card shadow-sm mb-4">
@@ -164,23 +186,13 @@
                             <div class="text-muted small mt-2">
                                 Se procesará el video según las opciones seleccionadas
                             </div>
+                            <!-- Mensaje de éxito (inicialmente oculto) -->
+                            <div id="completionMessage" class="alert alert-success mt-3 d-none">
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                Tus resultados están listos :)
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Processing Status -->
-        <div id="processingStatus" class="mb-4 d-none">
-            <div class="card">
-                <div class="card-body">
-                    <h2 class="h5">Estado del Procesamiento</h2>
-                    <div class="progress mb-3">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                             role="progressbar"></div>
-                    </div>
-                    <p id="statusText" class="text-muted mb-1">Preparando procesamiento...</p>
-                    <p id="estimatedTime" class="small text-muted">Tiempo estimado: calculando...</p>
                 </div>
             </div>
         </div>
@@ -194,8 +206,8 @@
 
                 <!-- Initial message when no results yet -->
                 <div id="noResultsMessage">
-                    <div class="text-center py-5">
-                        <i class="bi bi-camera-video display-1 text-muted"></i>
+                    <div class="text-center py-3">
+                        <i class="bi bi-camera-video display-4 text-muted"></i>
                         <p class="lead mt-3">Aquí aparecerán tus resultados</p>
                         <p class="text-muted">Sube un video y procésalo para generar subtítulos o audiodescripciones</p>
                     </div>
