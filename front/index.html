@@ -72,7 +72,7 @@
                     <!-- Mensaje de paciencia -->
                     <p class="text-info mb-3">
                         <i class="bi bi-info-circle-fill me-1"></i>
-                        <small>Ten paciencia, el proceso puede durar unos minutos</small>
+                        <small>Ten paciencia, el proceso puede durar unos minutos. Aún estamos en pruebas </small>
                     </p>
                     
                     <!-- Barra de progreso movida debajo del estado -->
@@ -218,32 +218,33 @@
                     <!-- Tabs para resultados -->
                     <ul class="nav nav-tabs" id="resultTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="preview-tab" data-bs-toggle="tab" 
-                                    data-bs-target="#previewTab" type="button" role="tab">
-                                <i class="bi bi-play-circle"></i> Vista Previa
+                            <button class="nav-link active" id="download-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#downloadTab" type="button" role="tab">
+                                <i class="bi bi-download"></i> Descargas
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="download-tab" data-bs-toggle="tab" 
-                                    data-bs-target="#downloadTab" type="button" role="tab">
-                                <i class="bi bi-download"></i> Descargas
+                            <button class="nav-link" id="preview-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#previewTab" type="button" role="tab">
+                                <i class="bi bi-play-circle"></i> Vista Previa
                             </button>
                         </li>
                     </ul>
                     
                     <!-- Contenido de tabs -->
                     <div class="tab-content mt-3">
-                        <!-- Tab de Vista Previa -->
-                        <div class="tab-pane fade show active" id="previewTab" role="tabpanel">
-                            <video id="resultVideo" class="w-100" controls>
-                                <source src="" type="video/mp4">
-                                <!-- Los subtítulos se añadirán con JavaScript -->
-                            </video>
+                        <!-- Tab de Descargas (ahora es la primera y activa por defecto) -->
+                        <div class="tab-pane fade show active" id="downloadTab" role="tabpanel">
+                            <!-- Se llenará con JavaScript -->
                         </div>
                         
-                        <!-- Tab de Descargas -->
-                        <div class="tab-pane fade" id="downloadTab" role="tabpanel">
-                            <!-- Se llenará con JavaScript -->
+                        <!-- Tab de Vista Previa (ahora con mensaje de "Próximamente") -->
+                        <div class="tab-pane fade" id="previewTab" role="tabpanel">
+                            <div class="text-center py-5">
+                                <i class="bi bi-hourglass display-1 text-muted"></i>
+                                <h3 class="mt-3">Próximamente</h3>
+                                <p class="text-muted">La funcionalidad de vista previa estará disponible en la próxima actualización.</p>
+                            </div>
                         </div>
                     </div>
                 </div>

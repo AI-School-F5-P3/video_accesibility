@@ -104,6 +104,9 @@ document.addEventListener('DOMContentLoaded', function() {
             updateStep(3);
             showProcessingStatus();
             
+            // Forzar la animación de la barra de progreso inmediatamente
+            progressBar.style.width = "5%"; // Comenzar con un pequeño avance visible
+            
             // Preparar el formulario
             const formData = new FormData();
             
@@ -190,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <!-- Mensaje de paciencia -->
                     <p class="text-info mb-3">
                         <i class="bi bi-info-circle-fill me-1"></i>
-                        <small>Ten paciencia, el proceso puede durar unos minutos</small>
+                        <small>Ten paciencia, el proceso puede durar unos minutos. Aún estamos en pruebas</small>
                     </p>
                     
                     <div class="progress mb-3">
@@ -310,15 +313,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     clearInterval(processingInterval);
                     updateStep(4);
                     
-                    // Actualizar mensaje a "Procesamiento completado"
-                    statusText.textContent = "Procesamiento completado";
-                    progressBar.style.width = "100%";
-                    estimatedTime.textContent = "";
-                    
-                    // Mostrar mensaje de completado
-                    if (completionMessage) {
-                        completionMessage.classList.remove('d-none');
-                    }
+                    // Reemplazar el panel de procesamiento con un mensaje de éxito
+                    processingStatus.innerHTML = `
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <i class="bi bi-check-circle-fill text-success display-1 mb-3"></i>
+                                <h2 class="h4">¡Procesamiento completado!</h2>
+                                <p class="text-success">Tus resultados están listos :)</p>
+                                <button class="btn btn-outline-primary mt-2" onclick="resetAnalysis()">
+                                    <i class="bi bi-arrow-repeat"></i> Nuevo análisis
+                                </button>
+                            </div>
+                        </div>
+                    `;
                     
                     await handleProcessingResults(currentVideoId);
                 } 
@@ -347,21 +354,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const results = await response.json();
             console.log('Processing results:', results);
-            
-            // Actualizar mensaje y mostrar botón de reinicio
-            if (processingStatus) {
-                // Agregar botón para reiniciar análisis si no existe ya
-                if (!document.getElementById('resetAnalysisBtn')) {
-                    const resetButton = document.createElement('button');
-                    resetButton.id = 'resetAnalysisBtn';
-                    resetButton.className = 'btn btn-primary mt-3';
-                    resetButton.innerHTML = '<i class="bi bi-arrow-repeat"></i> Reiniciar análisis';
-                    resetButton.onclick = resetAnalysis;
-                    
-                    // Añadir el botón al contenedor
-                    processingStatus.querySelector('.card-body').appendChild(resetButton);
-                }
-            }
             
             // Si hay un elemento de resultados, mostrarlo
             if (resultsSection) {
@@ -411,25 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('Vista previa desactivada temporalmente');
             } else {
                 // Si no hay sección de resultados, mostrar un mensaje
-                console.log('Mostrando mensaje de éxito');
-                const successMessage = `
-                    <div class="alert alert-success">
-                        <h4>¡Procesamiento completado!</h4>
-                        <p>El video ha sido procesado correctamente.</p>
-                        <div class="mt-2">
-                            ${results.outputs && results.outputs.subtitles ? 
-                            `<a href="${results.outputs.subtitles}" class="btn btn-primary">Descargar Subtítulos</a>` 
-                            : ''}
-                            ${results.outputs && results.outputs.audio_description ? 
-                            `<a href="${results.outputs.audio_description}" class="btn btn-secondary ms-2">Descargar Audiodescripción</a>` 
-                            : ''}
-                            <button class="btn btn-outline-primary ms-2" onclick="resetAnalysis()">
-                                <i class="bi bi-arrow-repeat"></i> Nuevo análisis
-                            </button>
-                        </div>
-                    </div>
-                `;
-                processingStatus.innerHTML = successMessage;
+                console.log('No se encontró la sección de resultados');
             }
         } catch (error) {
             console.error('Error al obtener resultados:', error);
@@ -464,7 +438,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <!-- Mensaje de paciencia -->
                         <p class="text-info mb-3">
                             <i class="bi bi-info-circle-fill me-1"></i>
-                            <small>Ten paciencia, el proceso puede durar unos minutos</small>
+                            <small>Ten paciencia, el proceso puede durar unos minutos. Aún estamos en pruebas</small>
                         </p>
                         
                         <div class="progress mb-3">
