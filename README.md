@@ -69,30 +69,39 @@ Este proyecto desarrolla una plataforma integral para la creación, gestión y d
 El proyecto sigue una arquitectura modular:
 
 ```
-├── api/                # API RESTful (FastAPI)
-├── models/             # Modelos de IA para procesamiento de audio/video
-│   ├── asr/            # Reconocimiento automático de voz (Whisper)
-│   ├── tts/            # Síntesis de voz (Coqui TTS, Google TTS)
-│   └── video/          # Análisis de video (SceneDetect)
-├── processing/         # Servicios de procesamiento
-│   ├── audio/          # Procesamiento de audio (Librosa)
-│   ├── subtitles/      # Generación y edición de subtítulos
-│   └── descriptions/   # Generación y edición de audiodescripciones
-├── ui/                 # Interfaz de usuario (Python basado)
-├── storage/            # Gestión de almacenamiento de archivos
-├── deployment/         # Configuraciones de despliegue
-└── docs/               # Documentación del proyecto
+├── api/                # API FastAPI para todos los endpoints
+│   ├── endpoints/      # Endpoints específicos (audiodesc, subtitle, video)
+│   └── main.py         # Configuración principal de la API
+├── data/               # Datos y archivos procesados
+│   ├── audio/          # Archivos de audio extraídos
+│   ├── processed/      # Videos procesados con frames y metadatos
+│   ├── raw/            # Videos originales sin procesar
+│   └── transcripts/    # Subtítulos generados (.srt)
+├── docs/               # Documentación (incluye estándares UNE153010/UNE153020)
+├── front/              # Interfaz web simple con HTML/CSS/JS
+├── src/                # Código fuente principal
+│   ├── config/         # Configuración y credenciales
+│   ├── core/           # Funcionalidades principales
+│   │   ├── audio_processor.py    # Procesamiento de audio
+│   │   ├── speech_processor.py   # Reconocimiento y síntesis de voz
+│   │   ├── text_processor.py     # Procesamiento de texto
+│   │   └── video_analyzer.py     # Análisis de video y escenas
+│   ├── models/         # Modelos de datos
+│   ├── services/       # Servicios de alto nivel
+│   └── utils/          # Utilidades (logging, formateo, validación)
+├── tests/              # Tests unitarios e integración
+└── examples/           # Ejemplos de uso
 ```
 
 ##  Documentación
 
-La documentación completa está disponible en la [carpeta docs](./docs/) e incluye:
+La documentación del proyecto incluye:
 
-- [Guía de Usuario](./docs/user-guide.md)
-- [Documentación de API](./docs/api-reference.md)
-- [Especificaciones Técnicas](./docs/technical-specs.md)
-- [Estándares de Accesibilidad](./docs/accessibility-standards.md)
+- Estándar UNE153010 - Para subtitulado
+- Estándar UNE153020 - Para audiodescripción
+- Documentación API automática en (generada por FastAPI):
 - [Guía de Contribución](./CONTRIBUTING.md)
+- [Código de conducta](./CODE_OF_CONDUCT.md)
 
 ## Pruebas
 
@@ -100,18 +109,15 @@ Para ejecutar las pruebas:
 
 ```bash
 # Asegúrate de tener el entorno virtual activado
-source venv/bin/activate  # En Windows: venv\Scripts\activate
+source env/bin/activate  # En Windows: env\Scripts\activate
 
 # Ejecutar todas las pruebas
 pytest
 
 # Ejecutar pruebas específicas
-pytest tests/test_asr.py
-pytest tests/test_tts.py
-pytest tests/test_video_processing.py
-
-# Pruebas de integración
-pytest tests/integration/
+pytest tests/test_video_analyzer.py
+pytest tests/test_audio_processor.py
+pytest tests/test_speech_processor.py
 ```
 
 ##  Roadmap
