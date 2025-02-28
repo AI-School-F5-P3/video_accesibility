@@ -1,7 +1,10 @@
+# Archivos de entorno y configuraciones locales
 .env
 .venv/
 __pycache__
 api-key.json
+
+# Directorios y archivos específicos de tu proyecto
 /examples
 /output
 ffmpeg.exe
@@ -10,6 +13,7 @@ ffprobe.exe
 data/
 env/
 
+# Archivos multimedia (audios y vídeos que ya tienes)
 .mp3
 .mp4
 .wav
@@ -17,3 +21,28 @@ env/
 .flac
 .aac
 .avi
+
+# Extensiones de imágenes comunes
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.webp
+*.svg
+*.ico
+
+# Extensiones de vídeo adicionales
+*.mov
+*.mkv
+*.flv
+*.webm
+*.wmv
+*.m4v
+
+# Archivos de caché o generados por IDEs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
