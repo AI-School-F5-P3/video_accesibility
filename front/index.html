@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIRESSE - Accesibilidad</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&display=swap" rel="stylesheet">
+    <link href="/static/css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Skip link para navegación por teclado -->
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark" role="navigation" aria-label="Navegación principal">
+        <div class="container">
+            <a class="navbar-brand" href="#">MIRESSE</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#historyModal">
+                            <i class="bi bi-clock-history"></i> Historial
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                            <i class="bi bi-gear"></i> Configuración
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container py-5" id="main-content">
+        <header class="text-center mb-5">
+            <h1 class="display-4">MIRESSE</h1>
+            <p class="lead">Audiodescripciones y subtítulos para la accesibilidad</p>
+        </header>
+
+        <!-- Progress Stepper -->
+        <nav class="stepper-wrapper mb-4">
+            <div class="stepper-item active">
+                <div class="step-counter">1</div>
+                <div class="step-name">Subir Video</div>
+            </div>
+            <div class="stepper-item">
+                <div class="step-counter">2</div>
+                <div class="step-name">Configurar</div>
+            </div>
+            <div class="stepper-item">
+                <div class="step-counter">3</div>
+                <div class="step-name">Procesar</div>
+            </div>
+            <div class="stepper-item">
+                <div class="step-counter">4</div>
+                <div class="step-name">Resultados</div>
+            </div>
+        </nav>
+
+        <!-- Processing Status (Ahora justo debajo del stepper) -->
+        <div id="processingStatus" class="mb-4 d-none">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h5">Estado del Procesamiento</h2>
+                    <p id="statusText" class="text-muted mb-1">Preparando procesamiento...</p>
+                    
+                    <!-- Mensaje de paciencia -->
+                    <p class="text-info mb-3">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        <small>Ten paciencia, el proceso puede durar unos minutos. Aún estamos en pruebas </small>
+                    </p>
+                    
+                    <!-- Barra de progreso movida debajo del estado -->
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                            role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <p id="estimatedTime" class="small text-muted">Tiempo estimado: calculando...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Entrada y Configuración -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="row">
+                    <!-- Columna Izquierda: Opciones de entrada -->
+                    <div class="col-lg-6">
+                        <h2 class="h4 mb-4">
+                            <i class="bi bi-film"></i> Entrada de Video
+                        </h2>
+
+                        <!-- URL Input -->
+                        <section class="mb-4">
+                            <h3 class="h5">
+                                <i class="bi bi-link"></i> Análisis por URL
+                            </h3>
+                            <div class="input-group">
+                                <input type="url" class="form-control" id="videoUrl" 
+                                       placeholder="Introduce la URL del video">
+                                <button class="btn btn-outline-secondary" type="button" id="clearUrl">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </section>
+
+                        <div class="text-center my-3">
+                            <span class="text-muted">- o -</span>
+                        </div>
+
+                        <!-- File Upload -->
+                        <section>
+                            <h3 class="h5">
+                                <i class="bi bi-upload"></i> Subir Video
+                            </h3>
+                            <div class="upload-area p-4 text-center">
+                                <input type="file" id="videoFile" accept="video/*" class="d-none">
+                                <label for="videoFile" class="mb-0">
+                                    <i class="bi bi-cloud-upload display-6 mb-3"></i>
+                                    <p>Arrastra tu video aquí o haz clic para seleccionar</p>
+                                    <small class="text-muted">Formatos: MP4, AVI, MOV (máx. 100MB)</small>
+                                </label>
+                            </div>
+                            <div id="uploadPreview" class="mt-3 d-none">
+                                <video id="videoPreview" class="w-100" controls></video>
+                                <button class="btn btn-sm btn-danger mt-2" id="removeVideo">
+                                    <i class="bi bi-trash"></i> Eliminar
+                                </button>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- Columna Derecha: Opciones de configuración -->
+                    <div class="col-lg-6">
+                        <h2 class="h4 mb-4">
+                            <i class="bi bi-gear"></i> Opciones de Análisis
+                        </h2>
+
+                        <div class="row mb-4">
+                            <!-- Audiodescripción -->
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h3 class="h5">Audiodescripción</h3>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="audioDesc">
+                                            <label class="form-check-label" for="audioDesc">
+                                                Generar audiodescripción
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Subtítulos -->
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h3 class="h5">Subtítulos</h3>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="subtitles">
+                                            <label class="form-check-label" for="subtitles">
+                                                Generar subtítulos
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mensaje informativo -->
+                        <div class="alert alert-info mb-4">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <small>Se procesan videos de hasta 10 minutos, en español. Para otras opciones, contáctanos.</small>
+                        </div>
+
+                        <div class="text-center">
+                            <button class="btn btn-lg btn-custom" id="processBtn">
+                                <i class="bi bi-play-circle"></i> Procesar Video
+                            </button>
+                            <div class="text-muted small mt-2">
+                                Se procesará el video según las opciones seleccionadas
+                            </div>
+                            <!-- Mensaje de éxito (inicialmente oculto) -->
+                            <div id="completionMessage" class="alert alert-success mt-3 d-none">
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                Tus resultados están listos :)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="h4 mb-4">
+                    <i class="bi bi-display"></i> Visualización
+                </h2>
+
+                <!-- Initial message when no results yet -->
+                <div id="noResultsMessage">
+                    <div class="text-center py-3">
+                        <i class="bi bi-camera-video display-4 text-muted"></i>
+                        <p class="lead mt-3">Aquí aparecerán tus resultados</p>
+                        <p class="text-muted">Sube un video y procésalo para generar subtítulos o audiodescripciones</p>
+                    </div>
+                </div>
+
+                <!-- Results content (initially hidden) -->
+                <div id="resultsSection" class="d-none">
+                    <!-- Tabs para resultados -->
+                    <ul class="nav nav-tabs" id="resultTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="download-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#downloadTab" type="button" role="tab">
+                                <i class="bi bi-download"></i> Descargas
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="preview-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#previewTab" type="button" role="tab">
+                                <i class="bi bi-play-circle"></i> Vista Previa
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <!-- Contenido de tabs -->
+                    <div class="tab-content mt-3">
+                        <!-- Tab de Descargas (ahora es la primera y activa por defecto) -->
+                        <div class="tab-pane fade show active" id="downloadTab" role="tabpanel">
+                            <!-- Se llenará con JavaScript -->
+                        </div>
+                        
+                        <!-- Tab de Vista Previa (ahora con mensaje de "Próximamente") -->
+                        <div class="tab-pane fade" id="previewTab" role="tabpanel">
+                            <div class="text-center py-5">
+                                <i class="bi bi-hourglass display-1 text-muted"></i>
+                                <h3 class="mt-3">Próximamente</h3>
+                                <p class="text-muted">La funcionalidad de vista previa estará disponible en la próxima actualización.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- History Modal -->
+    <div class="modal fade" id="historyModal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Historial de Procesamiento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Video</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Configuración</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="settingsForm">
+                        <div class="mb-3">
+                            <label class="form-label">Calidad de Video</label>
+                            <select class="form-select" id="videoQuality">
+                                <option value="high">Alta</option>
+                                <option value="medium">Media</option>
+                                <option value="low">Baja</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Idioma de la Interfaz</label>
+                            <select class="form-select" id="uiLanguage">
+                                <option value="es">Español</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notificaciones</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="emailNotif">
+                                <label class="form-check-label" for="emailNotif">
+                                    Recibir notificaciones por email
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-custom" id="saveSettings">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <h5>MIRESSE</h5>
+                    <p class="text-white">
+                        Haciendo el contenido audiovisual accesible by the dream team with ❤️
+                    </p>
+                    <div class="social-links">
+                        <a href="#" class="text-white me-2"><i class="bi bi-github"></i></a>
+                        <a href="#" class="text-white me-2"><i class="bi bi-linkedin"></i></a>
+                        <a href="#" class="text-white"><i class="bi bi-twitter"></i></a>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h5>Enlaces Rápidos</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-white">Documentación</a></li>
+                        <li><a href="#" class="text-white">Normativa UNE153020</a></li>
+                        <li><a href="#" class="text-white">Normativa UNE153010</a></li>
+                        <li><a href="#" class="text-white">FAQs</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h5>Contacto</h5>
+                    <ul class="list-unstyled text-white">
+                        <li><i class="bi bi-envelope-fill me-2"></i> contacto@miresse.com</li>
+                        <li><i class="bi bi-telephone-fill me-2"></i> +34 123 456 789</li>
+                        <li><i class="bi bi-geo-alt-fill me-2"></i> Madrid, España</li>
+                    </ul>
+                </div>
+            </div>
+            <hr class="my-4">
+             <div class="row">
+                <div class="col-md-6 text-center text-md-start">
+                    <small class="text-white">&copy; 2025 MIRESSE. Todos los derechos reservados.</small>
+             </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <small>
+                        <a href="#" class="text-white me-2">Términos de Uso</a>
+                        <a href="#" class="text-white">Política de Privacidad</a>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Custom JS -->
+    <script src="/static/js/main.js"></script>
+    
+  
+    -->
+</body>
+</html>
