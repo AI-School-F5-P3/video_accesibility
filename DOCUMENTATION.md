@@ -72,7 +72,8 @@ El sistema abarcará desde la generación de audiodescripciones y subtítulos (m
 ## 3. Arquitectura del Sistema
 
 ### 3.1 Diagrama de Arquitectura General
-[Incluir diagrama de arquitectura]
+
+https://drive.google.com/file/d/1_Med6OfhMlo5Mgx5EzFkl0-RrzjfsrPC/view?usp=sharing
 
 ### 3.2 Componentes Principales
 
