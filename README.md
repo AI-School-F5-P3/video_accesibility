@@ -1,23 +1,22 @@
 # Proyecto de Audiodescripciones y Subtítulos
 
-
 ## Descripción
 
 Este proyecto desarrolla una plataforma integral para la creación, gestión y distribución de audiodescripciones y subtítulos para contenido audiovisual. Nuestro objetivo es mejorar la accesibilidad del contenido multimedia para personas con discapacidades visuales y auditivas, siguiendo estándares internacionales y ofreciendo herramientas avanzadas asistidas por IA.
 
 ## Características Principales
 
-- **Transcripción automática de audio** usando Whisper de OpenAI
-- **Generación de audiodescripciones** con asistencia de IA y herramientas de edición manual
-- **Síntesis de voz de alta calidad** con Coqui TTS y Google Cloud TTS
-- **Detección automática de escenas** con SceneDetect
-- **Creación de subtítulos** con transcripción automática y soporte para SDH (Subtítulos para Sordos)
-- **Procesamiento y análisis de audio** con Librosa
-- **API RESTful** para integración con FastAPI
-- **Cumplimiento normativo** con estándares internacionales de accesibilidad (WCAG, EBU-TT, etc.)
-- **Compatibilidad con múltiples idiomas** a través de modelos multilingües
+- Transcripción automática de audio usando Whisper de OpenAI
+- Generación de audiodescripciones con asistencia de IA y herramientas de edición manual
+- Síntesis de voz de alta calidad con Coqui TTS y Google Cloud TTS
+- Detección automática de escenas con SceneDetect
+- Creación de subtítulos con transcripción automática y soporte para SDH (Subtítulos para Sordos)
+- Procesamiento y análisis de audio con Librosa
+- API RESTful para integración con FastAPI
+- Cumplimiento normativo con estándares internacionales de accesibilidad (WCAG, EBU-TT, etc.)
+- Compatibilidad con múltiples idiomas a través de modelos multilingües
 
-##  Inicio Rápido
+## Inicio Rápido
 
 ### Requisitos Previos
 
@@ -30,39 +29,107 @@ Este proyecto desarrolla una plataforma integral para la creación, gestión y d
 ### Instalación
 
 1. Clonar el repositorio:
-   ```bash
-   git clone https://github.com/tu-organizacion/proyecto-audiodescripciones.git
-   cd proyecto-audiodescripciones
-   ```
+
+```bash
+git clone https://github.com/tu-organizacion/proyecto-audiodescripciones.git
+cd proyecto-audiodescripciones
+```
 
 2. Crear y activar un entorno virtual:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # En Windows: venv\Scripts\activate
-   ```
+
+```bash
+python3 -m venv venv
+source venv/bin/activate  # En Windows: venv\Scripts\activate
+```
 
 3. Instalar dependencias:
-   ```bash
-   pip install -r requirements.txt
-   ```
+
+```bash
+pip install -r requirements.txt
+```
 
 4. Configurar variables de entorno:
-   ```bash
-   cp .env.example .env
-   # Editar .env con tus configuraciones
-   ```
 
-5. Iniciar los servicios con Docker:
-   ```bash
-   docker-compose up -d
-   ```
+```bash
+cp .env.example .env
+# Editar .env con tus configuraciones
+```
 
-6. Acceder a la aplicación:
-   ```
-   API: http://localhost:8000
-   Documentación API: http://localhost:8000/docs
-   Interfaz web: http://localhost:8000/ui
-   ```
+5. Configurar API Key de Google AI Studio:
+
+Para habilitar las funcionalidades de IA, necesitas configurar una API key de Google AI Studio:
+
+```
+GOOGLE_AI_STUDIO_API_KEY=tu_api_key_aquí
+```
+
+## Uso del Sistema
+
+Hay dos formas de utilizar el sistema:
+
+### A. Interfaz Web
+
+1. Inicia el servidor:
+
+```bash
+python3 main.py
+```
+
+2. Abre tu navegador y navega a: http://localhost:8000
+3. Utiliza la interfaz web para:
+   - Subir videos
+   - Generar subtítulos
+   - Generar audiodescripciones
+   - Visualizar los resultados
+
+### B. Línea de Comandos
+
+También puedes utilizar el sistema desde la línea de comandos con la herramienta CLI incluida:
+
+#### Iniciar el servidor
+
+Primero, inicia el servidor en una terminal:
+
+```bash
+python3 main.py
+```
+
+#### Uso básico del CLI
+
+En otra terminal, utiliza la herramienta CLI:
+
+```bash
+# Listar videos disponibles
+python miresse-cli.py list
+
+# Subir un nuevo video
+python miresse-cli.py upload /ruta/al/video.mp4
+
+# Generar subtítulos para un video (reemplaza VIDEO_ID con el ID real)
+python miresse-cli.py subtitle VIDEO_ID
+
+# Generar audiodescripción para un video
+python miresse-cli.py audiodesc VIDEO_ID
+
+# Ver subtítulos generados
+python miresse-cli.py view-subtitle VIDEO_ID
+
+# Ver audiodescripción generada
+python miresse-cli.py view-audiodesc VIDEO_ID
+```
+
+#### Opciones adicionales
+
+```bash
+# Esperar a que termine el proceso de generación
+python miresse-cli.py subtitle VIDEO_ID --wait
+
+# Guardar subtítulos en un archivo
+python miresse-cli.py view-subtitle VIDEO_ID --output subtitulos.srt
+
+# Guardar audiodescripción en un archivo
+python miresse-cli.py view-audiodesc VIDEO_ID --output audiodesc.txt
+```
 
 ## Arquitectura
 
@@ -93,14 +160,14 @@ El proyecto sigue una arquitectura modular:
 └── examples/           # Ejemplos de uso
 ```
 
-##  Documentación
+## Documentación
 
 La documentación del proyecto incluye:
 
 - Estándar UNE153010 - Para subtitulado
 - Estándar UNE153020 - Para audiodescripción
-- Documentación API automática en (generada por FastAPI):
-- [Código de conducta](./CODE_OF_CONDUCT.md)
+- Documentación API automática en http://localhost:8000/docs (generada por FastAPI)
+- Código de conducta
 
 ## Pruebas
 
@@ -108,7 +175,7 @@ Para ejecutar las pruebas:
 
 ```bash
 # Asegúrate de tener el entorno virtual activado
-source env/bin/activate  # En Windows: env\Scripts\activate
+source venv/bin/activate  # En Windows: venv\Scripts\activate
 
 # Ejecutar todas las pruebas
 pytest
@@ -119,43 +186,50 @@ pytest tests/test_audio_processor.py
 pytest tests/test_speech_processor.py
 ```
 
-##  Roadmap
+## Solución de Problemas
 
-- **Fase 1 (MVP)** - Funcionalidades básicas de audiodescripción y subtitulado
-- **Fase 2** - Integración de modelos de IA avanzados y soporte multilingüe
-- **Fase 3** - Herramientas avanzadas de control de calidad y API para desarrolladores
-- **Fase 4** - Funcionalidades colaborativas y marketplace de servicios
+### El servidor muestra advertencias sobre la API key
 
+Si ves advertencias como "API key de Google AI Studio no configurada", asegúrate de:
+1. Haber creado correctamente el archivo `.env`
+2. Haber colocado la clave correctamente (`GOOGLE_AI_STUDIO_API_KEY=tu_clave_aquí`)
+3. Reiniciar el servidor después de configurar la clave
 
+### El procesamiento tarda demasiado
 
-## Demos 
+El procesamiento de videos, especialmente para la generación de audiodescripciones, puede tardar varios minutos dependiendo de:
+- El tamaño y duración del video
+- La complejidad del contenido
+- Los recursos de tu sistema
 
-- [Demo en vivo](https://drive.google.com/file/d/1NQJxre1EunOqDbzsNwLlu5S1XoMYb13i/view?usp=drive_link)
-  
+Utiliza la opción `--wait` en el CLI para esperar automáticamente a que finalice el proceso.
 
+## Roadmap
+
+- Fase 1 (MVP) - Funcionalidades básicas de audiodescripción y subtitulado
+- Fase 2 - Integración de modelos de IA avanzados y soporte multilingüe
+- Fase 3 - Herramientas avanzadas de control de calidad y API para desarrolladores
+- Fase 4 - Funcionalidades colaborativas y marketplace de servicios
 
 ## Equipo
 
-- **Jaanh Yajuri B** - Especialista en IA/ML - [@jyajupy](https://github.com/jyajupy)
-- **Iryna Bilokon** - Especialista en IA/ML - [@irynabilokon](https://github.com/irynabilokon)
-- **Lisy Velasco** - Especialista en IA/ML - [@lisy29](https://github.com/Lisy29)
-- **Leire Martin-Berdinos** - Especialista en IA/ML - [@leimber](https://github.com/leimber)
-
+- Jaanh Yajuri B - Especialista en IA/ML - @jyajupy
+- Iryna Bilokon - Especialista en IA/ML - @irynabilokon
+- Lisy Velasco - Especialista en IA/ML - @lisy29
+- Leire Martin-Berdinos - Especialista en IA/ML - @leimber
 
 ## Contribuir
 
-¡Las contribuciones son bienvenidas! Por favor, lee nuestra [Guía de Contribución](./CONTRIBUTING.md) antes de enviar un pull request. Sigue nuestro [Código de Conducta](./CODE_OF_CONDUCT.md) en todas las interacciones.
+¡Las contribuciones son bienvenidas! Por favor, lee nuestra Guía de Contribución antes de enviar un pull request. Sigue nuestro Código de Conducta en todas las interacciones.
 
 ## Licencia
 
-Este proyecto está licenciado bajo la [Licencia Apache](./LICENSE).
+Este proyecto está licenciado bajo la Licencia Apache.
 
 ## Agradecimientos
 
 - Scalian por su propuesta y seguimiento del proyecto
 - Factoría F5 por la formación que culmina este proyecto
-
-
 
 
 <p align="center">
