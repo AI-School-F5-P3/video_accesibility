@@ -1,12 +1,11 @@
 # Proyecto de Audiodescripciones y Subtítulos
 
 
-
-## 🌟 Descripción
+## Descripción
 
 Este proyecto desarrolla una plataforma integral para la creación, gestión y distribución de audiodescripciones y subtítulos para contenido audiovisual. Nuestro objetivo es mejorar la accesibilidad del contenido multimedia para personas con discapacidades visuales y auditivas, siguiendo estándares internacionales y ofreciendo herramientas avanzadas asistidas por IA.
 
-## ✨ Características Principales
+## Características Principales
 
 - **Transcripción automática de audio** usando Whisper de OpenAI
 - **Generación de audiodescripciones** con asistencia de IA y herramientas de edición manual
