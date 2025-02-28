@@ -10,6 +10,11 @@ import logging
 import shutil
 import os
 from src.models import schemas
+import sys
+from pathlib import Path
+
+# Añadir el directorio raíz al path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 router = APIRouter()
 settings = Settings()
