@@ -8,6 +8,8 @@ from vertexai.generative_models import GenerativeModel
 from dataclasses import dataclass
 from pydub import AudioSegment
 from pydub.silence import detect_silence
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 @dataclass
 class AudioConfig:
@@ -156,24 +158,31 @@ class VoiceSynthesizer:
             Audio content as bytes
         """
         try:
-            # Create custom audio config with the provided rate
+            if not isinstance(rate, (int, float)):
+                logger.error(f"Invalid rate value: {rate}")
+                raise ValueError(f"Expected a number for rate, got: {rate}")
+            
+            rate = float(rate)  
+            pitch = float(pitch)
+
+                    # Create custom audio config with the provided rate
             audio_config = texttospeech_v1.AudioConfig(
                 audio_encoding=texttospeech_v1.AudioEncoding.LINEAR16,
                 speaking_rate=rate,
                 pitch=pitch
             )
-            
-            # Create synthesis input
+                    
+                    # Create synthesis input
             synthesis_input = texttospeech_v1.SynthesisInput(text=text)
-            
-            # Perform text-to-speech request
+                    
+                    # Perform text-to-speech request
             response = self.tts_client.synthesize_speech(
                 input=synthesis_input,
                 voice=self.voice_params,
                 audio_config=audio_config
             )
-            
-            # Return audio content
+                    
+                    # Return audio content
             return response.audio_content
         except Exception as e:
             logging.error(f"Error generating audio: {str(e)}")

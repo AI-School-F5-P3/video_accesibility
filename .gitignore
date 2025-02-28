@@ -171,3 +171,4 @@ output/I Concurso de Cortometrajes sobre familias y su diversidad- El tema del v
 output/*.mp3
 
 ffmpeg.exe
+.mp4
