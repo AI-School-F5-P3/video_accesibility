@@ -4,7 +4,10 @@ import logging
 import os
 import subprocess
 import aiofiles
-from typing import Optional, Dict, List
+import time
+import asyncio
+import json
+from typing import Optional, Dict, List, Tuple
 from fastapi import UploadFile
 from ..core.video_analyzer import VideoAnalyzer
 from ..core.text_processor import TextProcessor
@@ -25,6 +28,10 @@ class VideoService:
         # Crear directorios necesarios
         self.video_dir = Path("data/raw")
         self.video_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Directorio para videos procesados
+        self.processed_dir = Path("data/processed")
+        self.processed_dir.mkdir(parents=True, exist_ok=True)
 
     async def save_video(self, file: UploadFile) -> str:
         """Save uploaded video and return video_id"""
@@ -405,6 +412,11 @@ class VideoService:
                 import shutil
                 shutil.rmtree(processed_dir)
             
+            # Eliminar videos procesados con audiodescripciones integradas
+            integrated_video = Path(f"data/processed/{video_id}_with_audiodesc.mp4")
+            if integrated_video.exists():
+                integrated_video.unlink()
+            
             # Clean up processing status
             self._processing_status.pop(video_id, None)
             
@@ -421,3 +433,139 @@ class VideoService:
         
         _, ext = os.path.splitext(filename)
         return ext if ext else ".mp4"
+
+    async def render_with_audiodesc(self, video_id: str) -> bool:
+        """
+        Combina el video original con las audiodescripciones generadas para crear un nuevo video.
+        """
+        try:
+            # Actualizar estado
+            self._update_status(video_id, "processing", "Iniciando renderizado del video con audiodescripciones", 0)
+            
+            # Obtener rutas de archivos
+            video_path = await self.get_video_path(video_id)
+            if not video_path:
+                raise ValueError(f"Video no encontrado: {video_id}")
+            
+            audio_path = Path(f"data/audio/{video_id}_described.mp3")
+            if not audio_path.exists():
+                raise ValueError(f"Audiodescripción no encontrada para video {video_id}")
+            
+            # Directorio para resultados
+            output_dir = self.processed_dir
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Ruta del video de salida
+            output_path = output_dir / f"{video_id}_with_audiodesc.mp4"
+            
+            # Actualizar estado
+            self._update_status(video_id, "processing", "Combinando video con audiodescripciones", 20)
+            
+            # Usar FFmpeg para combinar el video con las audiodescripciones
+            try:
+                # Comando FFmpeg para combinar video con audio
+                command = [
+                    'ffmpeg',
+                    '-i', str(video_path),  # Video original
+                    '-i', str(audio_path),  # Audio con audiodescripciones
+                    '-map', '0:v',  # Usar el stream de video del primer input
+                    '-map', '1:a',  # Usar el stream de audio del segundo input
+                    '-c:v', 'copy',  # Copiar el video sin re-codificar
+                    '-c:a', 'aac',  # Codificar audio como AAC
+                    '-b:a', '192k',  # Bitrate de audio
+                    '-shortest',  # Terminar cuando el stream más corto acabe
+                    '-y',  # Sobrescribir archivo de salida si existe
+                    str(output_path)
+                ]
+                
+                # Ejecutar comando
+                result = subprocess.run(command, capture_output=True, text=True)
+                
+                if result.returncode != 0:
+                    logging.error(f"Error en FFmpeg: {result.stderr}")
+                    raise Exception(f"Error al renderizar video: {result.stderr}")
+                
+                # Verificar que el archivo de salida existe
+                if not output_path.exists():
+                    raise Exception("El archivo de salida no se generó correctamente")
+                
+                # Actualizar estado
+                self._update_status(video_id, "completed", "Video con audiodescripciones generado correctamente", 100)
+                
+                return True
+            
+            except Exception as e:
+                logging.error(f"Error en FFmpeg: {str(e)}")
+                self._update_status(video_id, "error", f"Error al renderizar video: {str(e)}")
+                return False
+                
+        except Exception as e:
+            logging.error(f"Error rendering video with audiodescriptions: {str(e)}")
+            self._update_status(video_id, "error", f"Error al renderizar video: {str(e)}")
+            return False
+
+    async def wait_and_render_with_audiodesc(self, video_id: str) -> bool:
+        """
+        Espera a que las audiodescripciones estén generadas y luego renderiza el video.
+        """
+        try:
+            # Esperar a que las audiodescripciones estén completas
+            max_wait_seconds = 600  # 10 minutos
+            wait_interval = 5  # 5 segundos
+            
+            self._update_status(video_id, "waiting", "Esperando a que las audiodescripciones estén listas", 10)
+            
+            start_time = time.time()
+            audiodesc_ready = False
+            
+            while time.time() - start_time < max_wait_seconds:
+                # Verificar si las audiodescripciones están listas
+                audio_path = Path(f"data/audio/{video_id}_described.mp3")
+                if audio_path.exists():
+                    audiodesc_ready = True
+                    break
+                
+                # Esperar un tiempo antes de verificar de nuevo
+                await asyncio.sleep(wait_interval)
+            
+            if not audiodesc_ready:
+                self._update_status(video_id, "error", 
+                                  "Tiempo de espera agotado para audiodescripciones", 0)
+                return False
+            
+            # Renderizar el video
+            return await self.render_with_audiodesc(video_id)
+            
+        except Exception as e:
+            logging.error(f"Error waiting for audiodescriptions: {str(e)}")
+            self._update_status(video_id, "error", f"Error al esperar audiodescripciones: {str(e)}")
+            return False
+
+    async def get_audiodesc_data(self, video_id: str) -> List[Dict]:
+        """
+        Obtiene los datos de las audiodescripciones para un video.
+        """
+        try:
+            # Buscar archivo JSON con datos de audiodescripciones
+            audiodesc_json = Path(f"data/audio/{video_id}_descriptions.json")
+            if audiodesc_json.exists():
+                with open(audiodesc_json, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            
+            # Si no existe, intentar obtener de otra manera (depende de la implementación)
+            return []
+            
+        except Exception as e:
+            logging.error(f"Error getting audiodescription data: {str(e)}")
+            return []
+
+    def save_rendered_video_path(self, video_id: str, output_path: Path) -> None:
+        """
+        Guarda la ruta del video renderizado en el estado.
+        """
+        try:
+            if video_id in self._processing_status:
+                self._processing_status[video_id]["rendered_video_path"] = str(output_path)
+                
+        except Exception as e:
+            logging.error(f"Error saving rendered video path: {str(e)}")

@@ -2,8 +2,12 @@ import os
 import sys
 import logging
 
-# Reducir el nivel de logging
-logging.basicConfig(level=logging.WARNING)
+# Configurar logging más detallado
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 # Crear directorios necesarios
 os.makedirs("data/raw/test123", exist_ok=True)
@@ -19,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-# Ajustar el import al archivo correcto
+
 from src.config.setup import Settings
 from api.endpoints import video, subtitle, audiodesc
 
@@ -56,6 +60,23 @@ async def root():
 # Punto de entrada para ejecución directa
 if __name__ == "__main__":
     import uvicorn
+    print("\n" + "="*50)
+    print(" MIRESSE - Herramienta de Audiodescripciones y Subtítulos")
+    print("="*50)
+    print("\n La aplicación está iniciando...")
+    print("La interfaz web estará disponible en: http://localhost:8000")
+    print(" La API estará disponible en: http://localhost:8000/api/v1")
+    print(" La documentación estará disponible en: http://localhost:8000/docs")
+    
+    # Mostrar estado de características principales
+    print("\nEstado del sistema:")
+    print(f"📂 Directorio de datos: {settings.DATA_DIR}")
+    print(f" Idioma configurado: {settings.LANGUAGE_CODE}")
+    print(f" Funciones de IA: {'Habilitadas' if hasattr(settings, 'ai_features_enabled') and settings.ai_features_enabled else 'Deshabilitadas'}")
+    
+    print("\n⚠️ Para detener el servidor, presiona CTRL+C")
+    print("="*50 + "\n")
+    
     uvicorn.run(
         "main:app", 
         host="localhost", 
