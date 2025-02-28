@@ -18,7 +18,7 @@ Este proyecto desarrolla una plataforma integral para la creación, gestión y d
 - **Cumplimiento normativo** con estándares internacionales de accesibilidad (WCAG, EBU-TT, etc.)
 - **Compatibilidad con múltiples idiomas** a través de modelos multilingües
 
-## 🚀 Inicio Rápido
+##  Inicio Rápido
 
 ### Requisitos Previos
 
@@ -85,7 +85,7 @@ El proyecto sigue una arquitectura modular:
 └── docs/               # Documentación del proyecto
 ```
 
-## 📚 Documentación
+##  Documentación
 
 La documentación completa está disponible en la [carpeta docs](./docs/) e incluye:
 
@@ -95,7 +95,7 @@ La documentación completa está disponible en la [carpeta docs](./docs/) e incl
 - [Estándares de Accesibilidad](./docs/accessibility-standards.md)
 - [Guía de Contribución](./CONTRIBUTING.md)
 
-## 🧪 Pruebas
+## Pruebas
 
 Para ejecutar las pruebas:
 
@@ -115,7 +115,7 @@ pytest tests/test_video_processing.py
 pytest tests/integration/
 ```
 
-## 🛣️ Roadmap
+##  Roadmap
 
 - **Fase 1 (MVP)** - Funcionalidades básicas de audiodescripción y subtitulado
 - **Fase 2** - Integración de modelos de IA avanzados y soporte multilingüe
@@ -124,13 +124,13 @@ pytest tests/integration/
 
 
 
-## 🌐 Demos 
+## Demos 
 
 - [Demo en vivo](https://drive.google.com/file/d/1NQJxre1EunOqDbzsNwLlu5S1XoMYb13i/view?usp=drive_link)
   
 
 
-## 👥 Equipo
+## Equipo
 
 - **Jaanh Yajuri B** - Especialista en IA/ML - [@jyajupy](https://github.com/jyajupy)
 - **Iryna Bilokon** - Especialista en IA/ML - [@irynabilokon](https://github.com/irynabilokon)
@@ -138,7 +138,7 @@ pytest tests/integration/
 - **Leire Martin-Berdinos** - Especialista en IA/ML - [@leimber](https://github.com/leimber)
 
 
-## 🤝 Contribuir
+## Contribuir
 
 ¡Las contribuciones son bienvenidas! Por favor, lee nuestra [Guía de Contribución](./CONTRIBUTING.md) antes de enviar un pull request. Sigue nuestro [Código de Conducta](./CODE_OF_CONDUCT.md) en todas las interacciones.
 
@@ -146,7 +146,7 @@ pytest tests/integration/
 
 Este proyecto está licenciado bajo la [Licencia Apache](./LICENSE).
 
-## 🙏 Agradecimientos
+## Agradecimientos
 
 - Scalian por su propuesta y seguimiento del proyecto
 - Factoría F5 por la formación que culmina este proyecto
