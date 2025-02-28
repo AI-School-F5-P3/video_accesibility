@@ -64,7 +64,7 @@ Este proyecto desarrolla una plataforma integral para la creación, gestión y d
    Interfaz web: http://localhost:8000/ui
    ```
 
-## 🧩 Arquitectura
+## Arquitectura
 
 El proyecto sigue una arquitectura modular:
 
@@ -147,7 +147,7 @@ pytest tests/test_speech_processor.py
 
 ¡Las contribuciones son bienvenidas! Por favor, lee nuestra [Guía de Contribución](./CONTRIBUTING.md) antes de enviar un pull request. Sigue nuestro [Código de Conducta](./CODE_OF_CONDUCT.md) en todas las interacciones.
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto está licenciado bajo la [Licencia Apache](./LICENSE).
 
