@@ -100,7 +100,6 @@ La documentación del proyecto incluye:
 - Estándar UNE153010 - Para subtitulado
 - Estándar UNE153020 - Para audiodescripción
 - Documentación API automática en (generada por FastAPI):
-- [Guía de Contribución](./CONTRIBUTING.md)
 - [Código de conducta](./CODE_OF_CONDUCT.md)
 
 ## Pruebas
