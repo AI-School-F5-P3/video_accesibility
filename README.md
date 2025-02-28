@@ -160,5 +160,5 @@ Este proyecto está licenciado bajo la [Licencia Apache](./LICENSE).
 
 
 <p align="center">
-  <sub>Hecho con ❤️ para mejorar la accesibilidad audiovisual para todos</sub>
+  <sub>Hecho con ❤️ para mejorar la accesibilidad audiovisual para todo el mundo</sub>
 </p>
