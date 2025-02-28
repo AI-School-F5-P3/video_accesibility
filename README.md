@@ -100,35 +100,35 @@ En otra terminal, utiliza la herramienta CLI:
 
 ```bash
 # Listar videos disponibles
-python miresse-cli.py list
+python3 miresse-cli.py list
 
 # Subir un nuevo video
-python miresse-cli.py upload /ruta/al/video.mp4
+python3 miresse-cli.py upload /ruta/al/video.mp4
 
 # Generar subtítulos para un video (reemplaza VIDEO_ID con el ID real)
-python miresse-cli.py subtitle VIDEO_ID
+python3 miresse-cli.py subtitle VIDEO_ID
 
 # Generar audiodescripción para un video
-python miresse-cli.py audiodesc VIDEO_ID
+python3 miresse-cli.py audiodesc VIDEO_ID
 
 # Ver subtítulos generados
-python miresse-cli.py view-subtitle VIDEO_ID
+python3 miresse-cli.py view-subtitle VIDEO_ID
 
 # Ver audiodescripción generada
-python miresse-cli.py view-audiodesc VIDEO_ID
+python3 miresse-cli.py view-audiodesc VIDEO_ID
 ```
 
 #### Opciones adicionales
 
 ```bash
 # Esperar a que termine el proceso de generación
-python miresse-cli.py subtitle VIDEO_ID --wait
+python3 miresse-cli.py subtitle VIDEO_ID --wait
 
 # Guardar subtítulos en un archivo
-python miresse-cli.py view-subtitle VIDEO_ID --output subtitulos.srt
+python3 miresse-cli.py view-subtitle VIDEO_ID --output subtitulos.srt
 
 # Guardar audiodescripción en un archivo
-python miresse-cli.py view-audiodesc VIDEO_ID --output audiodesc.txt
+python3 miresse-cli.py view-audiodesc VIDEO_ID --output audiodesc.txt
 ```
 
 ## Arquitectura
