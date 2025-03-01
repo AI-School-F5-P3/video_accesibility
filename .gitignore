@@ -1,6 +1,7 @@
 # Archivos de entorno y configuraciones locales
 .env
-.venv/
+venv/
+venv310/
 __pycache__
 api-key.json
 
