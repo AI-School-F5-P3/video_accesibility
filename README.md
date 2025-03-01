@@ -1,4 +1,5 @@
-# Miressë:Revolucionando la Automatización de Audiodescripción y Subtitulado 
+# Miressë:
+Revolucionando la Automatización de la Audiodescripción y el Subtitulado 
 
 ## Descripción
 
