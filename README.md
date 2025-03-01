@@ -1,4 +1,4 @@
-# Miresse: accesibilidad mediante Audiodescripciones y Subtítulos
+# Miressë:Revolucionando la Automatización de Audiodescripción y Subtitulado 
 
 ## Descripción
 
