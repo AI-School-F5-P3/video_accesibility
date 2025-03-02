@@ -15,7 +15,9 @@
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark" role="navigation" aria-label="Navegación principal">
         <div class="container">
-            <a class="navbar-brand" href="#">MIRESSE</a>
+            <a class="navbar-brand" href="#">
+                <img src="/static/images/logo.png" alt="MIRESSE Logo" class="navbar-logo"> MIRESSE
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -38,8 +40,11 @@
 
     <main class="container py-5" id="main-content">
         <header class="text-center mb-5">
+            <div class="header-logo-container">
+                <img src="/static/images/logo.png" alt="MIRESSE Logo" class="header-logo">
+            </div>
             <h1 class="display-4">MIRESSE</h1>
-            <p class="lead">Audiodescripciones y subtítulos para la accesibilidad</p>
+            <p class="lead">Revolucionando la Automatización de audiodescripciones y subtítulos</p>
         </header>
 
         <!-- Progress Stepper -->
@@ -78,7 +83,7 @@
                     <!-- Barra de progreso movida debajo del estado -->
                     <div class="progress mb-3">
                         <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                            role="progressbar" style="width: 0%"></div>
+                            role="progressbar" style="width: 5%"></div>
                     </div>
                     <p id="estimatedTime" class="small text-muted">Tiempo estimado: calculando...</p>
                 </div>
@@ -91,13 +96,13 @@
                 <div class="row">
                     <!-- Columna Izquierda: Opciones de entrada -->
                     <div class="col-lg-6">
-                        <h2 class="h4 mb-4">
+                        <h2 class="h4 mb-4 section-title">
                             <i class="bi bi-film"></i> Entrada de Video
                         </h2>
 
                         <!-- URL Input -->
                         <section class="mb-4">
-                            <h3 class="h5">
+                            <h3 class="h5 subsection-title">
                                 <i class="bi bi-link"></i> Análisis por URL
                             </h3>
                             <div class="input-group">
@@ -115,7 +120,7 @@
 
                         <!-- File Upload -->
                         <section>
-                            <h3 class="h5">
+                            <h3 class="h5 subsection-title">
                                 <i class="bi bi-upload"></i> Subir Video
                             </h3>
                             <div class="upload-area p-4 text-center">
@@ -137,16 +142,16 @@
 
                     <!-- Columna Derecha: Opciones de configuración -->
                     <div class="col-lg-6">
-                        <h2 class="h4 mb-4">
+                        <h2 class="h4 mb-4 section-title">
                             <i class="bi bi-gear"></i> Opciones de Análisis
                         </h2>
 
                         <div class="row mb-4">
                             <!-- Audiodescripción -->
-                            <div class="col-md-6">
+                            <div class="col-md-6 mb-3">
                                 <div class="card h-100">
                                     <div class="card-body">
-                                        <h3 class="h5">Audiodescripción</h3>
+                                        <h3 class="h5 subsection-title">Audiodescripción</h3>
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" id="audioDesc">
                                             <label class="form-check-label" for="audioDesc">
@@ -158,14 +163,29 @@
                             </div>
 
                             <!-- Subtítulos -->
-                            <div class="col-md-6">
+                            <div class="col-md-6 mb-3">
                                 <div class="card h-100">
                                     <div class="card-body">
-                                        <h3 class="h5">Subtítulos</h3>
+                                        <h3 class="h5 subsection-title">Subtítulos</h3>
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" id="subtitles">
                                             <label class="form-check-label" for="subtitles">
                                                 Generar subtítulos
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Video integrado - NUEVO -->
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h3 class="h5 subsection-title">Video con accesibilidad</h3>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="integratedVideo" checked>
+                                            <label class="form-check-label" for="integratedVideo">
+                                                Descargar video con accesibilidad integrada
                                             </label>
                                         </div>
                                     </div>
@@ -200,7 +220,7 @@
         <!-- Results Section -->
         <div class="card shadow-sm">
             <div class="card-body p-4">
-                <h2 class="h4 mb-4">
+                <h2 class="h4 mb-4 section-title">
                     <i class="bi bi-display"></i> Visualización
                 </h2>
 
@@ -376,8 +396,5 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
     <!-- Custom JS -->
     <script src="/static/js/main.js"></script>
-    
-  
-    -->
 </body>
 </html>

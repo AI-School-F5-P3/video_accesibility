@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const videoPreview = document.getElementById('videoPreview');
     const removeVideoBtn = document.getElementById('removeVideo');
     const processBtn = document.getElementById('processBtn');
+    const integratedVideoOption = document.getElementById('integratedVideo');
     let progressBar = document.querySelector('.progress-bar');
     let statusText = document.getElementById('statusText');
     let estimatedTime = document.getElementById('estimatedTime');
@@ -126,11 +127,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const subtitles = document.getElementById('subtitles');
             console.log('Opciones seleccionadas:', {
                 audiodesc: audioDesc?.checked,
-                subtitles: subtitles?.checked
+                subtitles: subtitles?.checked,
+                integrated_video: integratedVideoOption?.checked
             });
             
             formData.append('generate_audiodesc', audioDesc?.checked || false);
             formData.append('generate_subtitles', subtitles?.checked || false);
+            formData.append('integrated_video', integratedVideoOption?.checked || false);
             formData.append('subtitle_format', 'srt'); // Valor por defecto
             formData.append('target_language', 'es'); // Valor por defecto
 
@@ -198,7 +201,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <div class="progress mb-3">
                         <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                             role="progressbar" style="width: 0%"></div>
+                             role="progressbar" style="width: 5%"></div>
                     </div>
                     <p id="estimatedTime" class="small text-muted">Tiempo estimado: calculando...</p>
                 </div>
@@ -387,6 +390,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         `;
                     }
                     
+                    // Añadir opción para el video integrado
+                    if (results.outputs && results.outputs.integrated_video) {
+                        downloadContent += `
+                            <a href="${results.outputs.integrated_video}" class="list-group-item list-group-item-action">
+                                <i class="bi bi-film"></i> Video con accesibilidad integrada
+                                <span class="badge bg-primary float-end">MP4</span>
+                            </a>
+                        `;
+                    }
+                    
                     downloadContent += `</div>
                     <div class="mt-3">
                         <h6>Procesamiento completado</h6>
@@ -465,6 +478,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Restablecer checkboxes
         if (document.getElementById('audioDesc')) document.getElementById('audioDesc').checked = false;
         if (document.getElementById('subtitles')) document.getElementById('subtitles').checked = false;
+        if (document.getElementById('integratedVideo')) document.getElementById('integratedVideo').checked = true;
         
         // Actualizar stepper al paso 1
         updateStep(1);
